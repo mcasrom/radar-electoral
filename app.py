@@ -136,22 +136,25 @@ def dhondt(votos, escanos):
 def calcular_proyecciones():
     base_escenario = ajustar_escenario(BASE_NACIONAL)
     escanos_totales = {p:0 for p in PARTIDOS}
-    historico_semanal = []
+    datos_prov = []
 
-    for semana in range(4):  # ejemplo 4 semanas
-        escanos_semana = {p:0 for p in PARTIDOS}
-        for prov in PROVINCIAS:
-            votos = ajustar_territorial(base_escenario, prov)
-            escanos = ESCANOS[prov]
-            reparto = dhondt(votos, escanos)
-            for p in PARTIDOS:
-                escanos_semana[p] += reparto[p]
-        historico_semanal.append(escanos_semana)
+    for prov in PROVINCIAS:
+        votos = ajustar_territorial(base_escenario, prov)
+        escanos = ESCANOS[prov]
+        reparto = dhondt(votos, escanos)
+
+        fila = {"Provincia":prov,"Escaños Totales":escanos}
+        fila.update(votos)
+        fila.update({f"Escaños {p}":reparto[p] for p in PARTIDOS})
+        datos_prov.append(fila)
+
         for p in PARTIDOS:
-            escanos_totales[p] += escanos_semana[p]/4
-    return escanos_totales, historico_semanal
+            escanos_totales[p] += reparto[p]
 
-escanos_totales, historico_semanal = calcular_proyecciones()
+    df_prov = pd.DataFrame(datos_prov)
+    return escanos_totales, df_prov
+
+escanos_totales, df_prov = calcular_proyecciones()
 
 # ===============================
 # TABS
@@ -172,19 +175,10 @@ with tab1:
     mayoria = 176
     st.write(f"Mayoría absoluta: {mayoria}")
 
-    st.subheader("Evolución Semanal de Escaños (simulación)")
-    df_hist = pd.DataFrame(historico_semanal)
-    df_hist.index = [f"Semana {i+1}" for i in range(len(df_hist))]
-    fig_hist = go.Figure()
-    for p in PARTIDOS:
-        fig_hist.add_trace(go.Scatter(x=df_hist.index, y=df_hist[p], mode='lines+markers', name=p, line=dict(color=PARTIDOS_COLORES.get(p,"gray"))))
-    fig_hist.update_layout(xaxis_title="Semana", yaxis_title="Escaños", height=400)
-    st.plotly_chart(fig_hist,use_container_width=True)
-
-# ---------- PROVINCIAL ----------
+# ---------- DESGLOSE PROVINCIAL ----------
 with tab2:
-    st.subheader("Datos por Provincia")
-    st.dataframe(pd.DataFrame(), use_container_width=True)  # placeholder, puedes añadir df_prov si quieres
+    st.subheader("Datos por Provincia y Reparto de Escaños")
+    st.dataframe(df_prov, use_container_width=True)
 
 # ---------- RADAR ----------
 with tab3:
