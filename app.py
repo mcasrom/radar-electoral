@@ -8,10 +8,6 @@ import random
 st.set_page_config(layout="wide")
 st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral")
 
-# ===============================
-# PARTIDOS BASE
-# ===============================
-
 PARTIDOS = ["PP","PSOE","VOX","SUMAR","SALF","ERC","JUNTS","PNV","BILDU","CC","UPN","BNG","OTROS"]
 
 BASE_NACIONAL = {
@@ -30,10 +26,6 @@ BASE_NACIONAL = {
     "OTROS":6.3
 }
 
-# ===============================
-# ESCANOS OFICIALES CONGRESO (350)
-# ===============================
-
 ESCANOS = {
 "Álava":4,"Albacete":4,"Alicante":12,"Almería":6,"Asturias":7,"Ávila":3,
 "Badajoz":6,"Baleares":8,"Barcelona":32,"Burgos":4,"Cáceres":4,"Cádiz":9,
@@ -49,108 +41,75 @@ ESCANOS = {
 
 PROVINCIAS = list(ESCANOS.keys())
 
-# ===============================
-# SIDEBAR
-# ===============================
-
 st.sidebar.header("Control de Escenarios")
-
 factor_vivienda = st.sidebar.slider("Factor Crisis Vivienda",0,100,50)
 factor_energia = st.sidebar.slider("Factor Energía",0,100,50)
 fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales",0,100,80)
 
-# ===============================
-# FUNCIONES
-# ===============================
-
 def normalizar(dic):
-    """Normaliza valores para que sumen 100, sin redondeo que rompa proporciones"""
     total = sum(dic.values())
-    norm = {k: v * 100 / total for k,v in dic.items()}
-    return norm
+    return {k: v * 100 / total for k,v in dic.items()}
 
 def ajustar_escenario(base):
     ajuste = base.copy()
-
     ajuste["PP"] += (factor_vivienda - 50) * 0.02
     ajuste["PSOE"] -= (factor_vivienda - 50) * 0.015
     ajuste["SUMAR"] -= (factor_vivienda - 50) * 0.01
-
     ajuste["VOX"] += (factor_energia - 50) * 0.015
-
     return normalizar(ajuste)
 
 def ajustar_territorial(base, provincia):
     datos = base.copy()
-
     if provincia == "Madrid":
         datos["PP"] += 3
         datos["VOX"] += 1.5
-
     if provincia in ["Barcelona","Girona","Lleida","Tarragona"]:
         datos["ERC"] += 5
         datos["JUNTS"] += 4
         datos["PP"] -= 2
-
     if provincia in ["Vizcaya","Guipúzcoa","Álava"]:
         datos["PNV"] += 6
         datos["BILDU"] += 5
-
     if provincia == "Navarra":
         datos["UPN"] += 4
-
     if provincia in ["La Coruña","Lugo","Ourense","Pontevedra"]:
         datos["BNG"] += 3
-
-    # Añadimos ruido según fiabilidad
     ruido = (100 - fiabilidad) / 100
     for p in datos:
         datos[p] += random.uniform(-ruido*2, ruido*2)
-
     return normalizar(datos)
 
 def dhondt(votos, escanos):
     """
-    D'Hondt que garantiza que la suma sea exactamente escanos
+    D'Hondt robusto usando votos enteros grandes para evitar desbordes
     """
+    factor = 10000  # escala para evitar decimales muy pequeños
+    votos_int = {p: int(v*factor) for p,v in votos.items()}
     tabla = []
-    for p in votos:
+    for p in votos_int:
         for i in range(1, escanos+1):
-            tabla.append((p, votos[p]/i))
-
+            tabla.append((p, votos_int[p]/i))
     tabla.sort(key=lambda x: x[1], reverse=True)
-
-    resultado = {p:0 for p in votos}
+    resultado = {p:0 for p in votos_int}
     for i in range(escanos):
         resultado[tabla[i][0]] += 1
-
-    # Ajuste automático si hay desviación por decimales
-    total_asignado = sum(resultado.values())
-    if total_asignado != escanos:
-        mayor = max(resultado, key=resultado.get)
-        resultado[mayor] += escanos - total_asignado
-
     return resultado
 
 # ===============================
-# CALCULO PRINCIPAL
+# CÁLCULO PRINCIPAL
 # ===============================
 
 base_escenario = ajustar_escenario(BASE_NACIONAL)
-
 datos_prov = []
 escanos_totales = {p:0 for p in PARTIDOS}
 
 for prov in PROVINCIAS:
-
     votos = ajustar_territorial(base_escenario, prov)
     escanos = ESCANOS[prov]
     reparto = dhondt(votos, escanos)
-
     fila = {"Provincia":prov,"Escaños":escanos}
     fila.update(votos)
     datos_prov.append(fila)
-
     for p in PARTIDOS:
         escanos_totales[p] += reparto[p]
 
@@ -162,50 +121,26 @@ df_prov = pd.DataFrame(datos_prov)
 
 tab1, tab2, tab3 = st.tabs(["Hemiciclo","Desglose Provincial","Radar Estratégico"])
 
-# ---------- HEMICICLO ----------
 with tab1:
     st.subheader("Proyección de Escaños (350 oficiales)")
-
-    df_hemi = pd.DataFrame({
-        "Partido": list(escanos_totales.keys()),
-        "Escaños": list(escanos_totales.values())
-    })
-
+    df_hemi = pd.DataFrame({"Partido": list(escanos_totales.keys()),"Escaños": list(escanos_totales.values())})
     df_hemi = df_hemi.sort_values("Escaños",ascending=False)
-
     fig = px.bar(df_hemi, x="Partido", y="Escaños")
     st.plotly_chart(fig,use_container_width=True)
-
     total = df_hemi["Escaños"].sum()
     st.write(f"Total escaños asignados: {total} / 350")
-
-    if total != 350:
-        st.error("Error en asignación de escaños")  # Nunca aparecerá ahora
-
     mayoria = 176
-    ganador = df_hemi.iloc[0]
-
     st.write(f"Mayoría absoluta: {mayoria}")
 
-# ---------- PROVINCIAL ----------
 with tab2:
     st.subheader("Datos por Provincia")
     st.dataframe(df_prov, use_container_width=True)
 
-# ---------- RADAR ----------
 with tab3:
     st.subheader("Impacto Estratégico")
-
     categorias = ["Vivienda","Energía","Fiabilidad"]
     valores = [factor_vivienda,factor_energia,fiabilidad]
-
     fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(
-        r=valores,
-        theta=categorias,
-        fill='toself'
-    ))
-    fig_radar.update_layout(
-        polar=dict(radialaxis=dict(visible=True,range=[0,100]))
-    )
+    fig_radar.add_trace(go.Scatterpolar(r=valores, theta=categorias, fill='toself'))
+    fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True,range=[0,100])))
     st.plotly_chart(fig_radar,use_container_width=True)
