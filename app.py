@@ -5,9 +5,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 import random
 
+# ===============================
+# CONFIGURACIÓN DE LA PÁGINA
+# ===============================
 st.set_page_config(layout="wide")
 st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral")
 
+# ===============================
+# PARTIDOS BASE
+# ===============================
 PARTIDOS = ["PP","PSOE","VOX","SUMAR","SALF","ERC","JUNTS","PNV","BILDU","CC","UPN","BNG","OTROS"]
 
 BASE_NACIONAL = {
@@ -26,6 +32,9 @@ BASE_NACIONAL = {
     "OTROS":6.3
 }
 
+# ===============================
+# ESCANOS OFICIALES CONGRESO (350)
+# ===============================
 ESCANOS = {
 "Álava":4,"Albacete":4,"Alicante":12,"Almería":6,"Asturias":7,"Ávila":3,
 "Badajoz":6,"Baleares":8,"Barcelona":32,"Burgos":4,"Cáceres":4,"Cádiz":9,
@@ -41,12 +50,19 @@ ESCANOS = {
 
 PROVINCIAS = list(ESCANOS.keys())
 
+# ===============================
+# SIDEBAR
+# ===============================
 st.sidebar.header("Control de Escenarios")
 factor_vivienda = st.sidebar.slider("Factor Crisis Vivienda",0,100,50)
 factor_energia = st.sidebar.slider("Factor Energía",0,100,50)
 fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales",0,100,80)
 
+# ===============================
+# FUNCIONES
+# ===============================
 def normalizar(dic):
+    """Normaliza valores para que sumen 100"""
     total = sum(dic.values())
     return {k: v * 100 / total for k,v in dic.items()}
 
@@ -80,10 +96,8 @@ def ajustar_territorial(base, provincia):
     return normalizar(datos)
 
 def dhondt(votos, escanos):
-    """
-    D'Hondt robusto usando votos enteros grandes para evitar desbordes
-    """
-    factor = 10000  # escala para evitar decimales muy pequeños
+    """D'Hondt robusto usando votos enteros grandes para evitar desbordes"""
+    factor = 10000  # escala para eliminar problemas de decimales
     votos_int = {p: int(v*factor) for p,v in votos.items()}
     tabla = []
     for p in votos_int:
@@ -98,7 +112,6 @@ def dhondt(votos, escanos):
 # ===============================
 # CÁLCULO PRINCIPAL
 # ===============================
-
 base_escenario = ajustar_escenario(BASE_NACIONAL)
 datos_prov = []
 escanos_totales = {p:0 for p in PARTIDOS}
@@ -118,9 +131,11 @@ df_prov = pd.DataFrame(datos_prov)
 # ===============================
 # TABS
 # ===============================
+tab1, tab2, tab3, tab4 = st.tabs([
+    "Hemiciclo","Desglose Provincial","Radar Estratégico","Metodología y Fuentes"
+])
 
-tab1, tab2, tab3 = st.tabs(["Hemiciclo","Desglose Provincial","Radar Estratégico"])
-
+# ---------- HEMICICLO ----------
 with tab1:
     st.subheader("Proyección de Escaños (350 oficiales)")
     df_hemi = pd.DataFrame({"Partido": list(escanos_totales.keys()),"Escaños": list(escanos_totales.values())})
@@ -132,10 +147,12 @@ with tab1:
     mayoria = 176
     st.write(f"Mayoría absoluta: {mayoria}")
 
+# ---------- PROVINCIAL ----------
 with tab2:
     st.subheader("Datos por Provincia")
     st.dataframe(df_prov, use_container_width=True)
 
+# ---------- RADAR ----------
 with tab3:
     st.subheader("Impacto Estratégico")
     categorias = ["Vivienda","Energía","Fiabilidad"]
@@ -144,3 +161,32 @@ with tab3:
     fig_radar.add_trace(go.Scatterpolar(r=valores, theta=categorias, fill='toself'))
     fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True,range=[0,100])))
     st.plotly_chart(fig_radar,use_container_width=True)
+
+# ---------- METODOLOGÍA Y FUENTES ----------
+with tab4:
+    st.subheader("Metodología del Cálculo de Escaños")
+    st.markdown("""
+    Nuestro sistema multicapa realiza la proyección de escaños siguiendo estos pasos:
+    
+    1. **Ajuste Nacional:** Partimos de los datos base por partido y aplicamos ajustes según los factores estratégicos seleccionados en la barra lateral.
+    2. **Ajuste Territorial:** Modificaciones por provincia para reflejar tendencias locales, apoyos históricos y bloques regionales.
+    3. **Ruido y Fiabilidad:** La fiabilidad de los datos no es perfecta. Se añade un ruido aleatorio proporcional al factor de fiabilidad. Ninguna fuente oficial es 100% fiable.
+    4. **Reparto D'Hondt:** Asignación de escaños provinciales garantizando que la suma total nacional sea exactamente 350.
+    5. **Proyección Final:** Se suman los escaños provinciales y se muestra la proyección total con indicación de mayoría absoluta (176 escaños).
+    """)
+    
+    st.subheader("Fuentes de Datos")
+    st.markdown("""
+    - **Datos oficiales:** INE, Boletines Oficiales, registros históricos.  
+    - **Encuestas recientes:** Institutos privados y análisis de medios.  
+    - **Estimaciones y ajustes propios:** Para reflejar cambios recientes de tendencias políticas.
+    
+    **Nota:** Ninguna fuente es 100% fiable; los resultados son proyecciones basadas en datos actuales y estimaciones.
+    """)
+    
+    st.subheader("Limitaciones")
+    st.markdown("""
+    - Los resultados son **proyecciones**, no resultados oficiales.  
+    - Factores externos y cambios políticos recientes pueden modificar los resultados reales.  
+    - El algoritmo **no sustituye** los conteos oficiales de escaños.
+    """)
