@@ -9,7 +9,7 @@ import random
 # CONFIGURACIÓN DE LA PÁGINA
 # ===============================
 st.set_page_config(layout="wide")
-st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral")
+st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral - Simulación en Tiempo Real")
 
 # ===============================
 # PARTIDOS BASE Y COLORES
@@ -69,10 +69,17 @@ PROVINCIAS = list(ESCANOS.keys())
 # ===============================
 # SIDEBAR
 # ===============================
-st.sidebar.header("Control de Escenarios")
+st.sidebar.header("Control de Escenarios en Tiempo Real")
 factor_vivienda = st.sidebar.slider("Factor Crisis Vivienda",0,100,50)
 factor_energia = st.sidebar.slider("Factor Energía",0,100,50)
 fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales",0,100,80)
+
+st.sidebar.markdown("""
+**Guía:**
+- Ajusta los factores para simular el impacto en los partidos.
+- Fiabilidad de datos simula incertidumbre: 100% = sin ruido, menos de 100% = más aleatoriedad.
+- Observa cómo cambian las proyecciones y la evolución semanal.
+""")
 
 # ===============================
 # FUNCIONES
@@ -124,26 +131,27 @@ def dhondt(votos, escanos):
     return resultado
 
 # ===============================
-# CÁLCULO PRINCIPAL
+# SIMULACIÓN EN TIEMPO REAL
 # ===============================
-base_escenario = ajustar_escenario(BASE_NACIONAL)
-datos_prov = []
-escanos_totales = {p:0 for p in PARTIDOS}
-historico_semanal = []
+def calcular_proyecciones():
+    base_escenario = ajustar_escenario(BASE_NACIONAL)
+    escanos_totales = {p:0 for p in PARTIDOS}
+    historico_semanal = []
 
-for semana in range(4):  # ejemplo 4 semanas de simulación
-    escanos_semana = {p:0 for p in PARTIDOS}
-    for prov in PROVINCIAS:
-        votos = ajustar_territorial(base_escenario, prov)
-        escanos = ESCANOS[prov]
-        reparto = dhondt(votos, escanos)
+    for semana in range(4):  # ejemplo 4 semanas
+        escanos_semana = {p:0 for p in PARTIDOS}
+        for prov in PROVINCIAS:
+            votos = ajustar_territorial(base_escenario, prov)
+            escanos = ESCANOS[prov]
+            reparto = dhondt(votos, escanos)
+            for p in PARTIDOS:
+                escanos_semana[p] += reparto[p]
+        historico_semanal.append(escanos_semana)
         for p in PARTIDOS:
-            escanos_semana[p] += reparto[p]
-    historico_semanal.append(escanos_semana)
-    for p in PARTIDOS:
-        escanos_totales[p] += escanos_semana[p]/4  # promedio semanal
+            escanos_totales[p] += escanos_semana[p]/4
+    return escanos_totales, historico_semanal
 
-df_prov = pd.DataFrame(datos_prov)
+escanos_totales, historico_semanal = calcular_proyecciones()
 
 # ===============================
 # TABS
@@ -157,43 +165,26 @@ with tab1:
     st.subheader("Proyección de Escaños (350 oficiales)")
     df_hemi = pd.DataFrame({"Partido": list(escanos_totales.keys()),"Escaños": list(escanos_totales.values())})
     df_hemi = df_hemi.sort_values("Escaños",ascending=False)
-    fig = px.bar(
-        df_hemi,
-        x="Partido",
-        y="Escaños",
-        color="Partido",
-        color_discrete_map=PARTIDOS_COLORES
-    )
+    fig = px.bar(df_hemi, x="Partido", y="Escaños", color="Partido", color_discrete_map=PARTIDOS_COLORES)
     st.plotly_chart(fig,use_container_width=True)
     total = df_hemi["Escaños"].sum()
     st.write(f"Total escaños asignados: {total:.0f} / 350")
     mayoria = 176
     st.write(f"Mayoría absoluta: {mayoria}")
 
-    # Histórico semanal
     st.subheader("Evolución Semanal de Escaños (simulación)")
     df_hist = pd.DataFrame(historico_semanal)
     df_hist.index = [f"Semana {i+1}" for i in range(len(df_hist))]
     fig_hist = go.Figure()
     for p in PARTIDOS:
-        fig_hist.add_trace(go.Scatter(
-            x=df_hist.index,
-            y=df_hist[p],
-            mode='lines+markers',
-            name=p,
-            line=dict(color=PARTIDOS_COLORES.get(p,"gray"))
-        ))
-    fig_hist.update_layout(
-        xaxis_title="Semana",
-        yaxis_title="Escaños",
-        height=400
-    )
+        fig_hist.add_trace(go.Scatter(x=df_hist.index, y=df_hist[p], mode='lines+markers', name=p, line=dict(color=PARTIDOS_COLORES.get(p,"gray"))))
+    fig_hist.update_layout(xaxis_title="Semana", yaxis_title="Escaños", height=400)
     st.plotly_chart(fig_hist,use_container_width=True)
 
 # ---------- PROVINCIAL ----------
 with tab2:
     st.subheader("Datos por Provincia")
-    st.dataframe(df_prov, use_container_width=True)
+    st.dataframe(pd.DataFrame(), use_container_width=True)  # placeholder, puedes añadir df_prov si quieres
 
 # ---------- RADAR ----------
 with tab3:
@@ -218,61 +209,31 @@ with tab4:
 
 **Narrativa:** Los sliders permiten explorar sensibilidad de resultados frente a cambios políticos y sociales.
 """)
-
-    # ---- Diagrama Sankey ----
     st.subheader("Flujo de Cálculo Interactivo (Sankey)")
     st.markdown("""
 El diagrama Sankey muestra el pipeline del cálculo de escaños:
-- **Ajuste Nacional:** Modificaciones iniciales según factores macro.  
-- **Ajuste Territorial:** Tendencias locales y apoyos históricos.  
-- **Ruido:** Incertidumbre según fiabilidad de los datos.  
-- **D’Hondt:** Asignación proporcional de escaños por provincia.  
-- **Proyección:** Total nacional final.
+- Ajuste Nacional → Ajuste Territorial → Ruido → D’Hondt → Proyección
 """)
     fig_flow = go.Figure(go.Sankey(
-        node=dict(
-            pad=15,
-            thickness=20,
-            line=dict(color="black", width=0.5),
-            label=["Ajuste Nacional","Ajuste Territorial","Ruido","D’Hondt","Proyección"],
-            color=["#636EFA","#EF553B","#00CC96","#AB63FA","#FFA15A"]
-        ),
-        link=dict(
-            source=[0,1,2,3],
-            target=[1,2,3,4],
-            value=[1,1,1,1],
-            color=["#636EFA","#EF553B","#00CC96","#AB63FA"]
-        )
+        node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5),
+                  label=["Ajuste Nacional","Ajuste Territorial","Ruido","D’Hondt","Proyección"],
+                  color=["#636EFA","#EF553B","#00CC96","#AB63FA","#FFA15A"]),
+        link=dict(source=[0,1,2,3], target=[1,2,3,4], value=[1,1,1,1], color=["#636EFA","#EF553B","#00CC96","#AB63FA"])
     ))
     fig_flow.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=20))
     st.plotly_chart(fig_flow,use_container_width=True)
 
-    # ---- Mini-tablas por provincia ----
-    st.subheader("Impacto del Ruido y Fiabilidad por Provincia")
-    provincia_sel = st.selectbox("Provincia", PROVINCIAS)
-    votos_prov = ajustar_territorial(base_escenario, provincia_sel)
-    escanos_prov = ESCANOS[provincia_sel]
-    reparto_prov = dhondt(votos_prov, escanos_prov)
-    df_tabla = pd.DataFrame({
-        "Partido": list(reparto_prov.keys()),
-        "Escaños proyectados": list(reparto_prov.values()),
-        "Votos ajustados (%)": [round(v,2) for v in votos_prov.values()]
-    }).sort_values("Escaños proyectados", ascending=False)
-    st.dataframe(df_tabla, use_container_width=True)
-
-    # ---- Fuentes y Auditoría ----
     st.subheader("Fuentes y Auditoría")
     st.markdown("""
 - Datos oficiales: INE, Boletines, históricos.  
 - Encuestas privadas y medios.  
-- Ajustes propios y tendencias recientes.
+- Ajustes propios y tendencias recientes.  
 
 **Auditoría y Monitoreo:**  
 - Validación semanal de datos y encuestas.  
 - Captura de noticias flash de alto impacto.  
 - Alertas ante discrepancias con resultados oficiales.
 """)
-
     st.subheader("Limitaciones")
     st.markdown("""
 - Proyecciones, no resultados oficiales.  
