@@ -5,15 +5,15 @@ import plotly.graph_objects as go
 import json
 from datetime import datetime
 
-# --- VERSIÓN 5.2 - AUDITORÍA FORZADA ---
-st.set_page_config(page_title="ES-OSINT PRO 2026 v5.2", layout="wide")
+# CONFIGURACIÓN
+st.set_page_config(page_title="ES-OSINT PRO 2026 v5.3", layout="wide")
 
 def get_osint_events():
     return [
         {"f": "2026-02-15", "e": "Inestabilidad Precios Energía", "i": "Alto"},
         {"f": "2026-02-28", "e": "Crisis Acceso Vivienda Joven", "i": "Crítico"},
         {"f": "2026-03-03", "e": "Tensión Territorial: Financiación", "i": "Medio"},
-        {"f": "2026-03-04", "e": "Despliegue Maestro v5.2", "i": "Verificado"}
+        {"f": "2026-03-04", "e": "Sincronización Maestra v5.3", "i": "OK"}
     ]
 
 st.title("🇪🇸 Sistema de Inteligencia Geopolítica: España Vota 2026")
@@ -60,6 +60,7 @@ for p in nombres_geo:
     for part, esc in reparto.items(): total_escanos[part] = total_escanos.get(part, 0) + esc
     resultados.append({'Provincia': p, 'Ganador': max(reparto, key=reparto.get) if reparto else 'OTROS'})
 
+# TABS RE-DEFINIDOS
 t_map, t_radar, t_analisis, t_doc = st.tabs(["🗺️ Predominancia", "📡 Radar & Impactos", "📊 Escenario Político", "📄 Documentación & Trazabilidad"])
 
 with t_map:
@@ -90,8 +91,10 @@ with t_analisis:
 
 with t_doc:
     st.header("🛠️ Trazabilidad y Operaciones")
-    st.markdown("### Origen: Histórico Interior + Inferencia OSINT")
+    st.markdown("### Origen de Datos")
+    st.info("Fuente: Histórico Ministerio del Interior + Inferencia OSINT v2026.")
     st.latex(r"C = \frac{V}{S + 1} \quad | \quad E = 1.96 \cdot \sqrt{\frac{p(1-p)}{n}}")
-    st.info("Modelo de Simulación Probabilística procesado en ODROID-C2 (mcasrom).")
+    st.markdown("### Fiabilidad y Certidumbre")
+    st.write("Grado de veracidad: Simulación Probabilística basada en el nodo ODROID-C2 (mcasrom).")
     st.divider()
     st.markdown(f"**© 2026 M. Castillo** | [mybloggingnotes@gmail.com](mailto:mybloggingnotes@gmail.com)")
