@@ -48,9 +48,6 @@ BASE_NACIONAL = {
     "OTROS":6.3
 }
 
-# ===============================
-# ESCANOS OFICIALES CONGRESO (350)
-# ===============================
 ESCANOS = {
 "Álava":4,"Albacete":4,"Alicante":12,"Almería":6,"Asturias":7,"Ávila":3,
 "Badajoz":6,"Baleares":8,"Barcelona":32,"Burgos":4,"Cáceres":4,"Cádiz":9,
@@ -146,8 +143,23 @@ def calcular_proyecciones():
         fila = {"Provincia":prov,"Escaños Totales":escanos}
         fila.update(votos)
         fila.update({f"Escaños {p}":reparto[p] for p in PARTIDOS})
-        datos_prov.append(fila)
 
+        # Mini gráfico horizontal de votos
+        fig_mini = go.Figure()
+        fig_mini.add_trace(go.Bar(
+            x=[votos[p] for p in PARTIDOS],
+            y=PARTIDOS,
+            orientation='h',
+            marker_color=[PARTIDOS_COLORES[p] for p in PARTIDOS]
+        ))
+        fig_mini.update_layout(
+            height=200, margin=dict(l=20,r=20,t=20,b=20),
+            xaxis=dict(title="%", range=[0, max(votos.values())*1.2]),
+            yaxis=dict(title="Partido")
+        )
+        fila["Mini Gráfico"] = fig_mini
+
+        datos_prov.append(fila)
         for p in PARTIDOS:
             escanos_totales[p] += reparto[p]
 
@@ -178,7 +190,11 @@ with tab1:
 # ---------- DESGLOSE PROVINCIAL ----------
 with tab2:
     st.subheader("Datos por Provincia y Reparto de Escaños")
-    st.dataframe(df_prov, use_container_width=True)
+    for _, fila in df_prov.iterrows():
+        st.markdown(f"### {fila['Provincia']} ({fila['Escaños Totales']} escaños)")
+        st.plotly_chart(fila["Mini Gráfico"], use_container_width=True)
+        escanos_detalle = {p:fila[f"Escaños {p}"] for p in PARTIDOS}
+        st.write("Reparto de Escaños:", escanos_detalle)
 
 # ---------- RADAR ----------
 with tab3:
