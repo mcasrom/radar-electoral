@@ -17,7 +17,6 @@ st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral - Simulación y T
 # PARTIDOS BASE Y COLORES
 # ===============================
 PARTIDOS = ["PP","PSOE","VOX","SUMAR","SALF","ERC","JUNTS","PNV","BILDU","CC","UPN","BNG","OTROS"]
-
 PARTIDOS_COLORES = {
     "PP": "#1f77b4","PSOE": "#d62728","VOX": "#2ca02c","SUMAR": "#9467bd","SALF": "#7f7f7f",
     "ERC": "#ff7f0e","JUNTS": "#8c564b","PNV": "#17becf","BILDU": "#bcbd22","CC": "#e377c2",
@@ -64,7 +63,6 @@ st.sidebar.markdown("""
 # HISTÓRICO SEMANAL
 # ===============================
 HISTORICO_FILE = "historico_semanal.csv"
-
 if not os.path.exists(HISTORICO_FILE):
     df_hist = pd.DataFrame(columns=["Fecha","Provincia","Partido","Votos","Escaños"])
     df_hist.to_csv(HISTORICO_FILE,index=False)
@@ -88,32 +86,23 @@ def ajustar_escenario(base):
 
 def ajustar_territorial(base, provincia):
     datos = base.copy()
-    if provincia == "Madrid":
-        datos["PP"] += 3; datos["VOX"] += 1.5
+    if provincia == "Madrid": datos["PP"] += 3; datos["VOX"] += 1.5
     if provincia in ["Barcelona","Girona","Lleida","Tarragona"]:
         datos["ERC"] += 5; datos["JUNTS"] += 4; datos["PP"] -= 2
-    if provincia in ["Vizcaya","Guipúzcoa","Álava"]:
-        datos["PNV"] += 6; datos["BILDU"] += 5
-    if provincia == "Navarra":
-        datos["UPN"] += 4
-    if provincia in ["La Coruña","Lugo","Ourense","Pontevedra"]:
-        datos["BNG"] += 3
+    if provincia in ["Vizcaya","Guipúzcoa","Álava"]: datos["PNV"] += 6; datos["BILDU"] += 5
+    if provincia == "Navarra": datos["UPN"] += 4
+    if provincia in ["La Coruña","Lugo","Ourense","Pontevedra"]: datos["BNG"] += 3
     ruido = (100 - fiabilidad) / 100
-    for p in datos:
-        datos[p] += random.uniform(-ruido*2, ruido*2)
+    for p in datos: datos[p] += random.uniform(-ruido*2, ruido*2)
     return normalizar(datos)
 
 def dhondt(votos, escanos):
     factor = 10000
     votos_int = {p:int(v*factor) for p,v in votos.items()}
-    tabla = []
-    for p in votos_int:
-        for i in range(1, escanos+1):
-            tabla.append((p,votos_int[p]/i))
+    tabla = [(p, votos_int[p]/i) for p in votos_int for i in range(1, escanos+1)]
     tabla.sort(key=lambda x:x[1], reverse=True)
     resultado = {p:0 for p in votos_int}
-    for i in range(escanos):
-        resultado[tabla[i][0]] += 1
+    for i in range(escanos): resultado[tabla[i][0]] += 1
     return resultado
 
 # ===============================
@@ -123,7 +112,6 @@ def calcular_proyecciones():
     base_escenario = ajustar_escenario(BASE_NACIONAL)
     escanos_totales = {p:0 for p in PARTIDOS}
     datos_prov = []
-
     fecha_actual = str(date.today())
 
     for prov in PROVINCIAS:
@@ -135,35 +123,17 @@ def calcular_proyecciones():
         fila.update(votos)
         fila.update({f"Escaños {p}":reparto[p] for p in PARTIDOS})
 
-        # Guardar histórico
         for p in PARTIDOS:
             df_hist.loc[len(df_hist)] = [fecha_actual, prov, p, votos[p], reparto[p]]
 
-        # Mini gráfico horizontal con tooltip histórico
-        hover_text = []
-        for p in PARTIDOS:
-            hist_partido = df_hist[(df_hist.Provincia==prov)&(df_hist.Partido==p)]
-            hist_votos = hist_partido["Votos"].tolist()
-            hist_text = f"Semana actual: {votos[p]:.2f}%<br>Histórico: {', '.join(f'{v:.2f}%' for v in hist_votos[-4:])}"
-            hover_text.append(hist_text)
-
-        fig_mini = go.Figure()
-        fig_mini.add_trace(go.Bar(
-            x=[votos[p] for p in PARTIDOS],
-            y=PARTIDOS,
-            orientation='h',
-            marker_color=[PARTIDOS_COLORES[p] for p in PARTIDOS],
-            hovertemplate=hover_text
-        ))
+        hover_text = [f"Semana actual: {votos[p]:.2f}%<br>Histórico: {', '.join(f'{v:.2f}%' for v in df_hist[(df_hist.Provincia==prov)&(df_hist.Partido==p)]['Votos'].tolist()[-4:])}" for p in PARTIDOS]
+        fig_mini = go.Figure(go.Bar(x=[votos[p] for p in PARTIDOS], y=PARTIDOS, orientation='h', marker_color=[PARTIDOS_COLORES[p] for p in PARTIDOS], hovertemplate=hover_text))
         fig_mini.update_layout(height=200, margin=dict(l=20,r=20,t=20,b=20), xaxis=dict(title="%", range=[0, max(votos.values())*1.2]), yaxis=dict(title="Partido"))
 
         fila["Mini Gráfico"] = fig_mini
-
         datos_prov.append(fila)
-        for p in PARTIDOS:
-            escanos_totales[p] += reparto[p]
+        for p in PARTIDOS: escanos_totales[p] += reparto[p]
 
-    # Guardar CSV actualizado
     df_hist.to_csv(HISTORICO_FILE,index=False)
     df_prov = pd.DataFrame(datos_prov)
     return escanos_totales, df_prov, df_hist
