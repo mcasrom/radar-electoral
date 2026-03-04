@@ -3,21 +3,25 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import json
-import numpy as np
+from datetime import datetime, timedelta
 
 # --- CONFIGURACIÓN DE SISTEMA ---
 st.set_page_config(page_title="ES-OSINT PRO 2026", layout="wide")
 
+# --- DATASET DE IMPACTOS OSINT (Últimos 30 días) ---
+impactos_recientes = [
+    {"fecha": "2026-02-15", "evento": "Inestabilidad Precios Energía", "impacto": "Alto"},
+    {"fecha": "2026-02-28", "evento": "Crisis Acceso Vivienda Joven", "impacto": "Crítico"},
+    {"fecha": "2026-03-03", "evento": "Tensión Territorial: Financiación", "impacto": "Medio"},
+]
+
 # --- CABECERA ---
 st.title("🇪🇸 Sistema de Inteligencia Geopolítica: España Vota 2026")
 st.subheader("Análisis Probabilístico y Monitor de Factores Críticos")
-st.markdown(f"""
-**Monitor de Soberanía de Datos:** Procesamiento local en **ODROID-C2**. 
-*Sincronización automática diaria: 23:40 CET*
-""")
+st.markdown(f"**Soberanía de Datos:** Nodo **ODROID-C2**. Sincronización: 23:40 CET")
 st.divider()
 
-# --- CARGA GEOJSON (Provincias) ---
+# --- CARGA GEOJSON ---
 @st.cache_data
 def load_map():
     with open('data/provincias.json') as f:
@@ -43,7 +47,7 @@ PALETA = {
     'PNV': '#008000', 'BILDU': '#B5CF18', 'BNG': '#ADCFE3', 'CC': '#FFD700', 'UPN': '#10448E'
 }
 
-# --- DATASET CON PLURALIDAD ---
+# --- DATASET BASE ---
 nombres_geo = [f['properties']['name'] for f in geojson_spain['features']]
 datos_base = {}
 for p in nombres_geo:
@@ -63,9 +67,8 @@ for p in nombres_geo:
 st.sidebar.title("🛠️ Inferencia OSINT")
 trigger = st.sidebar.select_slider("Escenario Diplomático", options=['IZQ_TENSE', 'NEUTRAL', 'RUPTURA_USA', 'MAX_CONFLICTO'])
 
-# --- CÁLCULOS ---
-resultados = []
-total_escanos = {}
+# --- PROCESAMIENTO ---
+resultados, total_escanos = [], {}
 for p, info in datos_base.items():
     v = info['v'].copy()
     if trigger == 'MAX_CONFLICTO':
@@ -82,7 +85,7 @@ for p, info in datos_base.items():
 df = pd.DataFrame(resultados)
 
 # --- INTERFAZ (TABS) ---
-t_map, t_radar, t_analisis, t_metodo = st.tabs(["🗺️ Predominancia", "📡 Radar de Factores", "📊 Escenario Político", "📚 Metodología"])
+t_map, t_radar, t_analisis, t_metodo = st.tabs(["🗺️ Predominancia", "📡 Radar & Impactos", "📊 Escenario Político", "📚 Metodología"])
 
 with t_map:
     st.subheader("Mapa de Predominancia")
@@ -92,47 +95,36 @@ with t_map:
     st.plotly_chart(fig, use_container_width=True)
 
 with t_radar:
-    st.subheader("Radar OSINT: Indicadores de Tensión Electoral")
-    # Factores recuperados y verificados
-    radar_vals = [85, 90, 75, 65, 80]
-    radar_cats = ['Vivienda', 'Energía', 'Gasto Defensa', 'Tensión Territorial', 'Inflación Alimentos']
+    col_rad, col_feed = st.columns([1.5, 1])
+    with col_rad:
+        st.subheader("Radar de Factores Críticos")
+        r_v, r_c = [85, 90, 75, 65, 80], ['Vivienda', 'Energía', 'Defensa', 'Territorio', 'Inflación']
+        fig_r = go.Figure(go.Scatterpolar(r=r_v+[r_v[0]], theta=r_c+[r_c[0]], fill='toself', line_color='#E30613'))
+        fig_r.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), showlegend=False, height=450)
+        st.plotly_chart(fig_r, use_container_width=True)
     
-    fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(
-        r=radar_vals + [radar_vals[0]], 
-        theta=radar_cats + [radar_cats[0]], 
-        fill='toself', 
-        name='Impacto OSINT', 
-        line_color='#E30613'
-    ))
-    fig_radar.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-        showlegend=False, height=550
-    )
-    st.plotly_chart(fig_radar, use_container_width=True)
-    st.info("Visualización de ejes críticos que disparan la transferencia de votos en el modelo.")
+    with col_feed:
+        st.subheader("Eventos Recientes (OSINT)")
+        hoy = datetime.now()
+        for item in impactos_recientes:
+            fecha_dt = datetime.strptime(item["fecha"], "%Y-%m-%d")
+            dias = (hoy - fecha_dt).days
+            if dias <= 30:
+                st.error(f"**{item['evento']}** \nImpacto: {item['impacto']} ({dias} días atrás)")
+            else:
+                st.write(f"~~{item['evento']}~~ (Expirado)")
 
 with t_analisis:
-    col_pie, col_text = st.columns([1, 1.2])
-    with col_pie:
+    col_p, col_t = st.columns([1, 1.2])
+    with col_p:
         df_pie = pd.DataFrame(list(total_escanos.items()), columns=['Partido', 'Escaños'])
-        fig_p = px.pie(df_pie, values='Escaños', names='Partido', color='Partido', color_discrete_map=PALETA, hole=0.4)
-        st.plotly_chart(fig_p, use_container_width=True)
-    with col_text:
-        st.subheader("Análisis de Gobernabilidad")
+        st.plotly_chart(px.pie(df_pie, values='Escaños', names='Partido', color='Partido', color_discrete_map=PALETA, hole=0.4), use_container_width=True)
+    with col_t:
         der = total_escanos.get('PP',0)+total_escanos.get('VOX',0)+total_escanos.get('SALF',0)
         izq = total_escanos.get('PSOE',0)+total_escanos.get('SUMAR',0)+total_escanos.get('PODEMOS',0)
         st.metric("Bloque Derecha", f"{der} / 176")
         st.metric("Bloque Izquierda", f"{izq} / 176")
 
 with t_metodo:
-    st.markdown(f"""
-    ### Metodología OSINT
-    * **Hardware:** ODROID-C2 (dietpi)
-    * **Sync:** 23:40 CET
-    ---
-    ### Copyright y Propiedad
-    **© 2026 M. Castillo** 📩 [mybloggingnotes@gmail.com](mailto:mybloggingnotes@gmail.com)
-    *Todos los derechos reservados. No romper.*
-    """)
+    st.markdown(f"**© 2026 M. Castillo** | [mybloggingnotes@gmail.com](mailto:mybloggingnotes@gmail.com)")
     st.latex(r"E_{stocástico} = 1.96 \cdot \sqrt{\frac{p(1-p)}{n}}")
