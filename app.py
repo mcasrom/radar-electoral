@@ -62,7 +62,6 @@ fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales",0,100,80)
 # FUNCIONES
 # ===============================
 def normalizar(dic):
-    """Normaliza valores para que sumen 100"""
     total = sum(dic.values())
     return {k: v * 100 / total for k,v in dic.items()}
 
@@ -96,8 +95,7 @@ def ajustar_territorial(base, provincia):
     return normalizar(datos)
 
 def dhondt(votos, escanos):
-    """D'Hondt robusto usando votos enteros grandes para evitar desbordes"""
-    factor = 10000  # escala para eliminar problemas de decimales
+    factor = 10000
     votos_int = {p: int(v*factor) for p,v in votos.items()}
     tabla = []
     for p in votos_int:
@@ -166,27 +164,39 @@ with tab3:
 with tab4:
     st.subheader("Metodología del Cálculo de Escaños")
     st.markdown("""
-    Nuestro sistema multicapa realiza la proyección de escaños siguiendo estos pasos:
+    Este proyecto tiene como **objetivo** obtener **datos semanales de tendencias de voto** y proyectar escaños en el Congreso de forma dinámica.
     
-    1. **Ajuste Nacional:** Partimos de los datos base por partido y aplicamos ajustes según los factores estratégicos seleccionados en la barra lateral.
-    2. **Ajuste Territorial:** Modificaciones por provincia para reflejar tendencias locales, apoyos históricos y bloques regionales.
-    3. **Ruido y Fiabilidad:** La fiabilidad de los datos no es perfecta. Se añade un ruido aleatorio proporcional al factor de fiabilidad. Ninguna fuente oficial es 100% fiable.
-    4. **Reparto D'Hondt:** Asignación de escaños provinciales garantizando que la suma total nacional sea exactamente 350.
-    5. **Proyección Final:** Se suman los escaños provinciales y se muestra la proyección total con indicación de mayoría absoluta (176 escaños).
+    **Sidebar - Control de Escenarios:**  
+    - **Factor Crisis Vivienda:** Ajusta los apoyos de PP, PSOE y SUMAR según la percepción de la crisis de vivienda.  
+    - **Factor Energía:** Ajusta el apoyo a VOX según la situación energética.  
+    - **Fiabilidad Datos Oficiales:** Ajusta el ruido aleatorio que simula la incertidumbre en los datos. Ninguna fuente es 100% fiable.
+    
+    **Narrativa:** Los sliders permiten al usuario explorar cómo cambios sociales y políticos impactan en la proyección de escaños. El sistema ayuda a visualizar tendencias semanales, identificar bloques regionales y entender la sensibilidad de los resultados frente a la fiabilidad de las fuentes.
+    
+    **Metodología:**  
+    1. Ajuste Nacional  
+    2. Ajuste Territorial  
+    3. Ruido y Fiabilidad  
+    4. Reparto D'Hondt  
+    5. Proyección Final
     """)
-    
+
     st.subheader("Fuentes de Datos")
     st.markdown("""
     - **Datos oficiales:** INE, Boletines Oficiales, registros históricos.  
-    - **Encuestas recientes:** Institutos privados y análisis de medios.  
-    - **Estimaciones y ajustes propios:** Para reflejar cambios recientes de tendencias políticas.
+    - **Encuestas recientes:** Institutos privados y medios de comunicación.  
+    - **Estimaciones propias:** Ajustes basados en tendencias recientes.
     
-    **Nota:** Ninguna fuente es 100% fiable; los resultados son proyecciones basadas en datos actuales y estimaciones.
+    **Nota:** Ninguna fuente es 100% fiable; los resultados son **proyecciones**.
     """)
-    
+
     st.subheader("Limitaciones")
     st.markdown("""
-    - Los resultados son **proyecciones**, no resultados oficiales.  
-    - Factores externos y cambios políticos recientes pueden modificar los resultados reales.  
+    - Resultados **proyectados**, no oficiales.  
+    - Cambios políticos recientes pueden alterar los resultados reales.  
     - El algoritmo **no sustituye** los conteos oficiales de escaños.
     """)
+
+# ---------- PIE DE PÁGINA ----------
+st.markdown("---")
+st.markdown("© Miguel Castillo | contacto: [mybloggingnotes@gmail.com](mailto:mybloggingnotes@gmail.com)")
