@@ -164,18 +164,26 @@ with tab3:
 with tab4:
     st.subheader("Metodología del Cálculo de Escaños")
     st.markdown("""
-**Objetivo del Proyecto:** Obtener datos semanales de tendencias de voto y proyectar escaños dinámicamente.
+**Objetivo:** Obtener datos semanales de tendencias de voto y proyectar escaños dinámicamente.
 
 **Sidebar - Control de Escenarios:**  
-- Factor Crisis Vivienda: ajusta PP, PSOE, SUMAR según la percepción de la crisis.  
+- Factor Crisis Vivienda: ajusta PP, PSOE, SUMAR según percepción de la crisis.  
 - Factor Energía: ajusta VOX según situación energética.  
-- Fiabilidad Datos Oficiales: simula incertidumbre en los datos.
+- Fiabilidad Datos Oficiales: simula incertidumbre; ninguna fuente es 100% fiable.
 
-**Narrativa:** Explora cómo cambios políticos y sociales impactan en las proyecciones.
+**Narrativa:** Los sliders permiten explorar sensibilidad de resultados frente a cambios políticos y sociales.
 """)
 
-    # ---- Diagrama interactivo ----
-    st.subheader("Flujo de Cálculo Interactivo")
+    # ---- Diagrama Sankey Interactivo ----
+    st.subheader("Flujo de Cálculo Interactivo (Sankey)")
+    st.markdown("""
+El diagrama Sankey muestra el pipeline del cálculo de escaños:
+- **Ajuste Nacional:** Modificaciones iniciales según factores macro.  
+- **Ajuste Territorial:** Tendencias locales y apoyos históricos.  
+- **Ruido:** Incertidumbre según fiabilidad de los datos.  
+- **D’Hondt:** Asignación proporcional de escaños por provincia.  
+- **Proyección:** Total nacional final.
+""")
     fig_flow = go.Figure(go.Sankey(
         node=dict(
             pad=15,
@@ -194,7 +202,21 @@ with tab4:
     fig_flow.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=20))
     st.plotly_chart(fig_flow,use_container_width=True)
 
-    # ---- Fuentes y auditoría ----
+    # ---- Mini-tablas dinámicas por provincia ----
+    st.subheader("Impacto del Ruido y Fiabilidad por Provincia")
+    st.markdown("Selecciona una provincia para ver cómo el ruido afecta la proyección de escaños:")
+    provincia_sel = st.selectbox("Provincia", PROVINCIAS)
+    votos_prov = ajustar_territorial(base_escenario, provincia_sel)
+    escanos_prov = ESCANOS[provincia_sel]
+    reparto_prov = dhondt(votos_prov, escanos_prov)
+    df_tabla = pd.DataFrame({
+        "Partido": list(reparto_prov.keys()),
+        "Escaños proyectados": list(reparto_prov.values()),
+        "Votos ajustados (%)": [round(v,2) for v in votos_prov.values()]
+    }).sort_values("Escaños proyectados", ascending=False)
+    st.dataframe(df_tabla, use_container_width=True)
+
+    # ---- Fuentes y Auditoría ----
     st.subheader("Fuentes y Auditoría")
     st.markdown("""
 - Datos oficiales: INE, Boletines, históricos.  
