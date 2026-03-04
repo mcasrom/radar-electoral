@@ -1,47 +1,31 @@
 #!/bin/bash
-# --- CONFIGURACIÓN PARA USUARIO DIETPI ---
+# pulse_github.sh — Commit diario y push de votos_historicos.csv
+# Para uso en ODROID con cron
+
+# Variables
 REPO_DIR="/home/dietpi/espana-vota-2026"
-LOG_PULSE="$REPO_DIR/pulse.log"
-LOG_ERROR="$REPO_DIR/error_sync.log"
-MAX_LOG_SIZE=2000
+DATA_FILE="$REPO_DIR/data/votos_historicos.csv"
+LOG_DIR="$REPO_DIR/logs"
+DATE_STR=$(date '+%Y-%m-%d %H:%M:%S')
+LOG_FILE="$LOG_DIR/github_$(date +%Y%m%d).log"
 
-cd $REPO_DIR || exit 1
+# Crear carpeta de logs si no existe
+mkdir -p "$LOG_DIR"
 
-# --- FUNCIÓN DE ROTACIÓN ---
-rotate_logs() {
-    if [ -f "$LOG_ERROR" ]; then
-        SIZE=$(du -k "$LOG_ERROR" | cut -f1)
-        if [ $SIZE -gt $MAX_LOG_SIZE ]; then
-            mv "$LOG_ERROR" "${LOG_ERROR}.old"
-            touch "$LOG_ERROR"
-        fi
-    fi
-    if [ -f "$LOG_PULSE" ]; then
-        tail -n 30 "$LOG_PULSE" > "${LOG_PULSE}.tmp" && mv "${LOG_PULSE}.tmp" "$LOG_PULSE"
-    fi
-}
+# Cambiar al repo
+cd "$REPO_DIR" || exit 1
 
-# --- EJECUCIÓN ---
-TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+# Git pull para actualizar
+echo "[$DATE_STR] 🔄 Pull desde GitHub" >> "$LOG_FILE"
+git pull origin main >> "$LOG_FILE" 2>&1
 
-{
-    echo "--- Inicio Sincronización Dietpi: $TIMESTAMP ---"
-    rotate_logs
-    
-    # Git Add de componentes críticos
-    git add pulse.log app.py README.md data/provincias.json .gitignore
-    
-    if ! git diff-index --quiet HEAD --; then
-        echo "$TIMESTAMP - Pulso OSINT activo." >> "$LOG_PULSE"
-        git commit -m "Radar Sync (Dietpi): $TIMESTAMP"
-        
-        if git push origin main; then
-            echo "ÉXITO: Sincronización con GitHub completada."
-        else
-            echo "ERROR: Fallo de conexión o credenciales en Git push." >&2
-            exit 1
-        fi
-    else
-        echo "INFO: Sin cambios detectados en el radar."
-    fi
-} >> "$LOG_ERROR" 2>&1
+# Añadir archivo de datos
+git add "$DATA_FILE" >> "$LOG_FILE" 2>&1
+
+# Commit con fecha/hora
+git commit -m "Actualización automática: $DATE_STR" >> "$LOG_FILE" 2>&1
+
+# Push a GitHub
+git push origin main >> "$LOG_FILE" 2>&1
+
+echo "[$DATE_STR] ✅ Commit y push realizados" >> "$LOG_FILE"
