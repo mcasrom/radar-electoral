@@ -164,38 +164,55 @@ with tab3:
 with tab4:
     st.subheader("Metodología del Cálculo de Escaños")
     st.markdown("""
-    Este proyecto tiene como **objetivo** obtener **datos semanales de tendencias de voto** y proyectar escaños en el Congreso de forma dinámica.
-    
-    **Sidebar - Control de Escenarios:**  
-    - **Factor Crisis Vivienda:** Ajusta los apoyos de PP, PSOE y SUMAR según la percepción de la crisis de vivienda.  
-    - **Factor Energía:** Ajusta el apoyo a VOX según la situación energética.  
-    - **Fiabilidad Datos Oficiales:** Ajusta el ruido aleatorio que simula la incertidumbre en los datos. Ninguna fuente es 100% fiable.
-    
-    **Narrativa:** Los sliders permiten al usuario explorar cómo cambios sociales y políticos impactan en la proyección de escaños. El sistema ayuda a visualizar tendencias semanales, identificar bloques regionales y entender la sensibilidad de los resultados frente a la fiabilidad de las fuentes.
-    
-    **Metodología:**  
-    1. Ajuste Nacional  
-    2. Ajuste Territorial  
-    3. Ruido y Fiabilidad  
-    4. Reparto D'Hondt  
-    5. Proyección Final
-    """)
+**Objetivo del Proyecto:** Obtener datos semanales de tendencias de voto y proyectar escaños dinámicamente.
 
-    st.subheader("Fuentes de Datos")
+**Sidebar - Control de Escenarios:**  
+- Factor Crisis Vivienda: ajusta PP, PSOE, SUMAR según la percepción de la crisis.  
+- Factor Energía: ajusta VOX según situación energética.  
+- Fiabilidad Datos Oficiales: simula incertidumbre en los datos.
+
+**Narrativa:** Explora cómo cambios políticos y sociales impactan en las proyecciones.
+""")
+
+    # ---- Diagrama interactivo ----
+    st.subheader("Flujo de Cálculo Interactivo")
+    fig_flow = go.Figure(go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=["Ajuste Nacional","Ajuste Territorial","Ruido","D’Hondt","Proyección"],
+            color=["#636EFA","#EF553B","#00CC96","#AB63FA","#FFA15A"]
+        ),
+        link=dict(
+            source=[0,1,2,3],
+            target=[1,2,3,4],
+            value=[1,1,1,1],
+            color=["#636EFA","#EF553B","#00CC96","#AB63FA"]
+        )
+    ))
+    fig_flow.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=20))
+    st.plotly_chart(fig_flow,use_container_width=True)
+
+    # ---- Fuentes y auditoría ----
+    st.subheader("Fuentes y Auditoría")
     st.markdown("""
-    - **Datos oficiales:** INE, Boletines Oficiales, registros históricos.  
-    - **Encuestas recientes:** Institutos privados y medios de comunicación.  
-    - **Estimaciones propias:** Ajustes basados en tendencias recientes.
-    
-    **Nota:** Ninguna fuente es 100% fiable; los resultados son **proyecciones**.
-    """)
+- Datos oficiales: INE, Boletines, históricos.  
+- Encuestas privadas y medios.  
+- Ajustes propios y tendencias recientes.
+
+**Auditoría y Monitoreo:**  
+- Validación semanal de datos y encuestas.  
+- Captura de noticias flash de alto impacto.  
+- Alertas ante discrepancias con resultados oficiales.
+""")
 
     st.subheader("Limitaciones")
     st.markdown("""
-    - Resultados **proyectados**, no oficiales.  
-    - Cambios políticos recientes pueden alterar los resultados reales.  
-    - El algoritmo **no sustituye** los conteos oficiales de escaños.
-    """)
+- Proyecciones, no resultados oficiales.  
+- Cambios políticos recientes pueden alterar resultados.  
+- El algoritmo no sustituye conteos oficiales.
+""")
 
 # ---------- PIE DE PÁGINA ----------
 st.markdown("---")
