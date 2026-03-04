@@ -12,9 +12,25 @@ st.set_page_config(layout="wide")
 st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral")
 
 # ===============================
-# PARTIDOS BASE
+# PARTIDOS BASE Y COLORES
 # ===============================
 PARTIDOS = ["PP","PSOE","VOX","SUMAR","SALF","ERC","JUNTS","PNV","BILDU","CC","UPN","BNG","OTROS"]
+
+PARTIDOS_COLORES = {
+    "PP": "#1f77b4",      # azul
+    "PSOE": "#d62728",    # rojo
+    "VOX": "#2ca02c",     # verde
+    "SUMAR": "#9467bd",   # violeta
+    "SALF": "#7f7f7f",    # gris
+    "ERC": "#ff7f0e",     # naranja
+    "JUNTS": "#8c564b",   # marrón
+    "PNV": "#17becf",     # cyan
+    "BILDU": "#bcbd22",   # amarillo oliva
+    "CC": "#e377c2",      # rosa
+    "UPN": "#7f7f7f",     # gris
+    "BNG": "#17becf",     # cyan
+    "OTROS": "#c7c7c7"    # gris claro
+}
 
 BASE_NACIONAL = {
     "PP":30,
@@ -113,16 +129,19 @@ def dhondt(votos, escanos):
 base_escenario = ajustar_escenario(BASE_NACIONAL)
 datos_prov = []
 escanos_totales = {p:0 for p in PARTIDOS}
+historico_semanal = []
 
-for prov in PROVINCIAS:
-    votos = ajustar_territorial(base_escenario, prov)
-    escanos = ESCANOS[prov]
-    reparto = dhondt(votos, escanos)
-    fila = {"Provincia":prov,"Escaños":escanos}
-    fila.update(votos)
-    datos_prov.append(fila)
+for semana in range(4):  # ejemplo 4 semanas de simulación
+    escanos_semana = {p:0 for p in PARTIDOS}
+    for prov in PROVINCIAS:
+        votos = ajustar_territorial(base_escenario, prov)
+        escanos = ESCANOS[prov]
+        reparto = dhondt(votos, escanos)
+        for p in PARTIDOS:
+            escanos_semana[p] += reparto[p]
+    historico_semanal.append(escanos_semana)
     for p in PARTIDOS:
-        escanos_totales[p] += reparto[p]
+        escanos_totales[p] += escanos_semana[p]/4  # promedio semanal
 
 df_prov = pd.DataFrame(datos_prov)
 
@@ -138,12 +157,38 @@ with tab1:
     st.subheader("Proyección de Escaños (350 oficiales)")
     df_hemi = pd.DataFrame({"Partido": list(escanos_totales.keys()),"Escaños": list(escanos_totales.values())})
     df_hemi = df_hemi.sort_values("Escaños",ascending=False)
-    fig = px.bar(df_hemi, x="Partido", y="Escaños")
+    fig = px.bar(
+        df_hemi,
+        x="Partido",
+        y="Escaños",
+        color="Partido",
+        color_discrete_map=PARTIDOS_COLORES
+    )
     st.plotly_chart(fig,use_container_width=True)
     total = df_hemi["Escaños"].sum()
-    st.write(f"Total escaños asignados: {total} / 350")
+    st.write(f"Total escaños asignados: {total:.0f} / 350")
     mayoria = 176
     st.write(f"Mayoría absoluta: {mayoria}")
+
+    # Histórico semanal
+    st.subheader("Evolución Semanal de Escaños (simulación)")
+    df_hist = pd.DataFrame(historico_semanal)
+    df_hist.index = [f"Semana {i+1}" for i in range(len(df_hist))]
+    fig_hist = go.Figure()
+    for p in PARTIDOS:
+        fig_hist.add_trace(go.Scatter(
+            x=df_hist.index,
+            y=df_hist[p],
+            mode='lines+markers',
+            name=p,
+            line=dict(color=PARTIDOS_COLORES.get(p,"gray"))
+        ))
+    fig_hist.update_layout(
+        xaxis_title="Semana",
+        yaxis_title="Escaños",
+        height=400
+    )
+    st.plotly_chart(fig_hist,use_container_width=True)
 
 # ---------- PROVINCIAL ----------
 with tab2:
@@ -174,7 +219,7 @@ with tab4:
 **Narrativa:** Los sliders permiten explorar sensibilidad de resultados frente a cambios políticos y sociales.
 """)
 
-    # ---- Diagrama Sankey Interactivo ----
+    # ---- Diagrama Sankey ----
     st.subheader("Flujo de Cálculo Interactivo (Sankey)")
     st.markdown("""
 El diagrama Sankey muestra el pipeline del cálculo de escaños:
@@ -202,9 +247,8 @@ El diagrama Sankey muestra el pipeline del cálculo de escaños:
     fig_flow.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=20))
     st.plotly_chart(fig_flow,use_container_width=True)
 
-    # ---- Mini-tablas dinámicas por provincia ----
+    # ---- Mini-tablas por provincia ----
     st.subheader("Impacto del Ruido y Fiabilidad por Provincia")
-    st.markdown("Selecciona una provincia para ver cómo el ruido afecta la proyección de escaños:")
     provincia_sel = st.selectbox("Provincia", PROVINCIAS)
     votos_prov = ajustar_territorial(base_escenario, provincia_sel)
     escanos_prov = ESCANOS[provincia_sel]
