@@ -19,19 +19,9 @@ st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral - Simulación y T
 PARTIDOS = ["PP","PSOE","VOX","SUMAR","SALF","ERC","JUNTS","PNV","BILDU","CC","UPN","BNG","OTROS"]
 
 PARTIDOS_COLORES = {
-    "PP": "#1f77b4",
-    "PSOE": "#d62728",
-    "VOX": "#2ca02c",
-    "SUMAR": "#9467bd",
-    "SALF": "#7f7f7f",
-    "ERC": "#ff7f0e",
-    "JUNTS": "#8c564b",
-    "PNV": "#17becf",
-    "BILDU": "#bcbd22",
-    "CC": "#e377c2",
-    "UPN": "#7f7f7f",
-    "BNG": "#17becf",
-    "OTROS": "#c7c7c7"
+    "PP": "#1f77b4","PSOE": "#d62728","VOX": "#2ca02c","SUMAR": "#9467bd","SALF": "#7f7f7f",
+    "ERC": "#ff7f0e","JUNTS": "#8c564b","PNV": "#17becf","BILDU": "#bcbd22","CC": "#e377c2",
+    "UPN": "#7f7f7f","BNG": "#17becf","OTROS": "#c7c7c7"
 }
 
 BASE_NACIONAL = {
@@ -75,7 +65,6 @@ st.sidebar.markdown("""
 # ===============================
 HISTORICO_FILE = "historico_semanal.csv"
 
-# Inicializar CSV si no existe
 if not os.path.exists(HISTORICO_FILE):
     df_hist = pd.DataFrame(columns=["Fecha","Provincia","Partido","Votos","Escaños"])
     df_hist.to_csv(HISTORICO_FILE,index=False)
@@ -177,14 +166,14 @@ def calcular_proyecciones():
     # Guardar CSV actualizado
     df_hist.to_csv(HISTORICO_FILE,index=False)
     df_prov = pd.DataFrame(datos_prov)
-    return escanos_totales, df_prov
+    return escanos_totales, df_prov, df_hist
 
-escanos_totales, df_prov = calcular_proyecciones()
+escanos_totales, df_prov, df_hist = calcular_proyecciones()
 
 # ===============================
 # TABS
 # ===============================
-tab1, tab2, tab3, tab4 = st.tabs(["Hemiciclo","Desglose Provincial","Radar Estratégico","Metodología y Fuentes"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Hemiciclo","Desglose Provincial","Radar Estratégico","Metodología y Fuentes","Histórico Semanal"])
 
 # ---------- HEMICICLO ----------
 with tab1:
@@ -206,7 +195,6 @@ with tab2:
         st.plotly_chart(fila["Mini Gráfico"], use_container_width=True)
         escanos_detalle = {p:fila[f"Escaños {p}"] for p in PARTIDOS}
         st.write("Reparto de Escaños:", escanos_detalle)
-        # Botón para ver evolución histórica por partido
         if st.button(f"Ver evolución {fila['Provincia']}", key=f"hist_{fila['Provincia']}"):
             df_hist_prov = df_hist[df_hist.Provincia==fila['Provincia']]
             fig_line = go.Figure()
@@ -267,6 +255,12 @@ with tab4:
 - Cambios políticos recientes pueden alterar resultados.  
 - El algoritmo no sustituye conteos oficiales.
 """)
+
+# ---------- HISTÓRICO SEMANAL ----------
+with tab5:
+    st.subheader("Histórico Semanal de Votos y Escaños")
+    st.dataframe(df_hist, use_container_width=True)
+    st.markdown("Se puede filtrar por provincia, partido o fecha usando la funcionalidad de Streamlit DataFrame.")
 
 # ---------- PIE DE PÁGINA ----------
 st.markdown("---")
