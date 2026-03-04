@@ -64,10 +64,8 @@ fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales",0,100,80)
 # ===============================
 
 def normalizar(dic):
-    """Normaliza valores para que sumen 100, sin redondeo que rompa proporciones"""
     total = sum(dic.values())
-    norm = {k: v * 100 / total for k,v in dic.items()}
-    return norm
+    return {k: round(v * 100 / total, 2) for k,v in dic.items()}
 
 def ajustar_escenario(base):
     ajuste = base.copy()
@@ -102,7 +100,6 @@ def ajustar_territorial(base, provincia):
     if provincia in ["La Coruña","Lugo","Ourense","Pontevedra"]:
         datos["BNG"] += 3
 
-    # Añadimos ruido según fiabilidad
     ruido = (100 - fiabilidad) / 100
     for p in datos:
         datos[p] += random.uniform(-ruido*2, ruido*2)
@@ -110,9 +107,6 @@ def ajustar_territorial(base, provincia):
     return normalizar(datos)
 
 def dhondt(votos, escanos):
-    """
-    D'Hondt que garantiza que la suma sea exactamente escanos
-    """
     tabla = []
     for p in votos:
         for i in range(1, escanos+1):
@@ -123,12 +117,6 @@ def dhondt(votos, escanos):
     resultado = {p:0 for p in votos}
     for i in range(escanos):
         resultado[tabla[i][0]] += 1
-
-    # Ajuste automático si hay desviación por decimales
-    total_asignado = sum(resultado.values())
-    if total_asignado != escanos:
-        mayor = max(resultado, key=resultado.get)
-        resultado[mayor] += escanos - total_asignado
 
     return resultado
 
@@ -174,13 +162,14 @@ with tab1:
     df_hemi = df_hemi.sort_values("Escaños",ascending=False)
 
     fig = px.bar(df_hemi, x="Partido", y="Escaños")
+
     st.plotly_chart(fig,use_container_width=True)
 
     total = df_hemi["Escaños"].sum()
     st.write(f"Total escaños asignados: {total} / 350")
 
     if total != 350:
-        st.error("Error en asignación de escaños")  # Nunca aparecerá ahora
+        st.error("Error en asignación de escaños")
 
     mayoria = 176
     ganador = df_hemi.iloc[0]
@@ -200,12 +189,15 @@ with tab3:
     valores = [factor_vivienda,factor_energia,fiabilidad]
 
     fig_radar = go.Figure()
+
     fig_radar.add_trace(go.Scatterpolar(
         r=valores,
         theta=categorias,
         fill='toself'
     ))
+
     fig_radar.update_layout(
         polar=dict(radialaxis=dict(visible=True,range=[0,100]))
     )
+
     st.plotly_chart(fig_radar,use_container_width=True)
