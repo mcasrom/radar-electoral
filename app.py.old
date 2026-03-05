@@ -4,52 +4,44 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import random
+import os
+from datetime import date
 
 # ===============================
-# CONFIGURACIÓN DE LA PÁGINA
+# CONFIGURACIÓN
 # ===============================
 st.set_page_config(layout="wide")
-st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral - Simulación en Tiempo Real")
+st.title("🇪🇸 Sistema Multicapa de Inteligencia Electoral")
 
 # ===============================
-# PARTIDOS BASE Y COLORES
+# PARTIDOS Y COLORES
 # ===============================
 PARTIDOS = ["PP","PSOE","VOX","SUMAR","SALF","ERC","JUNTS","PNV","BILDU","CC","UPN","BNG","OTROS"]
 
 PARTIDOS_COLORES = {
-    "PP": "#1f77b4",      # azul
-    "PSOE": "#d62728",    # rojo
-    "VOX": "#2ca02c",     # verde
-    "SUMAR": "#9467bd",   # violeta
-    "SALF": "#7f7f7f",    # gris
-    "ERC": "#ff7f0e",     # naranja
-    "JUNTS": "#8c564b",   # marrón
-    "PNV": "#17becf",     # cyan
-    "BILDU": "#bcbd22",   # amarillo oliva
-    "CC": "#e377c2",      # rosa
-    "UPN": "#7f7f7f",     # gris
-    "BNG": "#17becf",     # cyan
-    "OTROS": "#c7c7c7"    # gris claro
+    "PP": "#1f77b4",
+    "PSOE": "#d62728",
+    "VOX": "#2ca02c",
+    "SUMAR": "#9467bd",
+    "SALF": "#7f7f7f",
+    "ERC": "#ff7f0e",
+    "JUNTS": "#8c564b",
+    "PNV": "#17becf",
+    "BILDU": "#bcbd22",
+    "CC": "#e377c2",
+    "UPN": "#8c564b",
+    "BNG": "#17becf",
+    "OTROS": "#c7c7c7"
 }
 
 BASE_NACIONAL = {
-    "PP":30,
-    "PSOE":27,
-    "VOX":16,
-    "SUMAR":8,
-    "SALF":4,
-    "ERC":2,
-    "JUNTS":2,
-    "PNV":1.5,
-    "BILDU":1.2,
-    "CC":0.8,
-    "UPN":0.5,
-    "BNG":0.7,
-    "OTROS":6.3
+    "PP":30,"PSOE":27,"VOX":16,"SUMAR":8,"SALF":4,
+    "ERC":2,"JUNTS":2,"PNV":1.5,"BILDU":1.2,"CC":0.8,
+    "UPN":0.5,"BNG":0.7,"OTROS":6.3
 }
 
 # ===============================
-# ESCANOS OFICIALES CONGRESO (350)
+# PROVINCIAS Y ESCANOS
 # ===============================
 ESCANOS = {
 "Álava":4,"Albacete":4,"Alicante":12,"Almería":6,"Asturias":7,"Ávila":3,
@@ -67,19 +59,28 @@ ESCANOS = {
 PROVINCIAS = list(ESCANOS.keys())
 
 # ===============================
-# SIDEBAR
+# SIDEBAR CONTROL
 # ===============================
-st.sidebar.header("Control de Escenarios en Tiempo Real")
-factor_vivienda = st.sidebar.slider("Factor Crisis Vivienda",0,100,50)
-factor_energia = st.sidebar.slider("Factor Energía",0,100,50)
-fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales",0,100,80)
+st.sidebar.header("Control de Escenarios")
+factor_vivienda = st.sidebar.slider("Impacto Crisis Vivienda",0,100,50)
+factor_energia = st.sidebar.slider("Impacto Energía",0,100,50)
+fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales (%)",0,100,80)
 
 st.sidebar.markdown("""
-**Guía:**
-- Ajusta los factores para simular el impacto en los partidos.
-- Fiabilidad de datos simula incertidumbre: 100% = sin ruido, menos de 100% = más aleatoriedad.
-- Observa cómo cambian las proyecciones y la evolución semanal.
+Este panel permite simular escenarios políticos.
+Los datos oficiales no pueden considerarse 100% fiables.
+El objetivo del proyecto es detectar tendencias semanales de voto.
 """)
+
+# ===============================
+# HISTORICO
+# ===============================
+HIST_FILE = "historico_semanal.csv"
+
+if os.path.exists(HIST_FILE):
+    df_hist = pd.read_csv(HIST_FILE)
+else:
+    df_hist = pd.DataFrame(columns=["Fecha","Provincia","Partido","Votos","Escaños"])
 
 # ===============================
 # FUNCIONES
@@ -92,149 +93,166 @@ def ajustar_escenario(base):
     ajuste = base.copy()
     ajuste["PP"] += (factor_vivienda - 50) * 0.02
     ajuste["PSOE"] -= (factor_vivienda - 50) * 0.015
-    ajuste["SUMAR"] -= (factor_vivienda - 50) * 0.01
     ajuste["VOX"] += (factor_energia - 50) * 0.015
     return normalizar(ajuste)
 
 def ajustar_territorial(base, provincia):
     datos = base.copy()
+
     if provincia == "Madrid":
         datos["PP"] += 3
         datos["VOX"] += 1.5
+
     if provincia in ["Barcelona","Girona","Lleida","Tarragona"]:
         datos["ERC"] += 5
         datos["JUNTS"] += 4
         datos["PP"] -= 2
+
     if provincia in ["Vizcaya","Guipúzcoa","Álava"]:
         datos["PNV"] += 6
         datos["BILDU"] += 5
-    if provincia == "Navarra":
-        datos["UPN"] += 4
-    if provincia in ["La Coruña","Lugo","Ourense","Pontevedra"]:
-        datos["BNG"] += 3
-    ruido = (100 - fiabilidad) / 100
+
+    ruido = (100-fiabilidad)/100
     for p in datos:
         datos[p] += random.uniform(-ruido*2, ruido*2)
+
     return normalizar(datos)
 
 def dhondt(votos, escanos):
     factor = 10000
-    votos_int = {p: int(v*factor) for p,v in votos.items()}
-    tabla = []
-    for p in votos_int:
-        for i in range(1, escanos+1):
-            tabla.append((p, votos_int[p]/i))
-    tabla.sort(key=lambda x: x[1], reverse=True)
+    votos_int = {p:int(v*factor) for p,v in votos.items()}
+    tabla = [(p, votos_int[p]/i) for p in votos_int for i in range(1, escanos+1)]
+    tabla.sort(key=lambda x:x[1], reverse=True)
     resultado = {p:0 for p in votos_int}
     for i in range(escanos):
         resultado[tabla[i][0]] += 1
     return resultado
 
 # ===============================
-# SIMULACIÓN EN TIEMPO REAL
+# CALCULO PRINCIPAL
 # ===============================
-def calcular_proyecciones():
-    base_escenario = ajustar_escenario(BASE_NACIONAL)
+def calcular():
+    fecha = str(date.today())
+    base_esc = ajustar_escenario(BASE_NACIONAL)
     escanos_totales = {p:0 for p in PARTIDOS}
     datos_prov = []
 
     for prov in PROVINCIAS:
-        votos = ajustar_territorial(base_escenario, prov)
+        votos = ajustar_territorial(base_esc, prov)
         escanos = ESCANOS[prov]
         reparto = dhondt(votos, escanos)
 
-        fila = {"Provincia":prov,"Escaños Totales":escanos}
-        fila.update(votos)
-        fila.update({f"Escaños {p}":reparto[p] for p in PARTIDOS})
-        datos_prov.append(fila)
+        for p in PARTIDOS:
+            # evitar duplicados
+            if not ((df_hist["Fecha"]==fecha) &
+                    (df_hist["Provincia"]==prov) &
+                    (df_hist["Partido"]==p)).any():
+                df_hist.loc[len(df_hist)] = [fecha,prov,p,votos[p],reparto[p]]
 
         for p in PARTIDOS:
             escanos_totales[p] += reparto[p]
 
-    df_prov = pd.DataFrame(datos_prov)
-    return escanos_totales, df_prov
+        datos_prov.append({"Provincia":prov,"Escaños":escanos,"Reparto":reparto,"Votos":votos})
 
-escanos_totales, df_prov = calcular_proyecciones()
+    df_hist.to_csv(HIST_FILE,index=False)
+
+    # Ajuste final por seguridad a 350
+    total = sum(escanos_totales.values())
+    if total != 350:
+        diferencia = 350-total
+        mayor = max(escanos_totales,key=escanos_totales.get)
+        escanos_totales[mayor]+=diferencia
+
+    return escanos_totales, datos_prov
+
+escanos_totales, datos_prov = calcular()
 
 # ===============================
 # TABS
 # ===============================
-tab1, tab2, tab3, tab4 = st.tabs([
-    "Hemiciclo","Desglose Provincial","Radar Estratégico","Metodología y Fuentes"
-])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+["Hemiciclo","Desglose Provincial","Radar Estratégico","Metodología","Histórico Semanal"]
+)
 
-# ---------- HEMICICLO ----------
+# ---------------- HEMICICLO
 with tab1:
-    st.subheader("Proyección de Escaños (350 oficiales)")
-    df_hemi = pd.DataFrame({"Partido": list(escanos_totales.keys()),"Escaños": list(escanos_totales.values())})
-    df_hemi = df_hemi.sort_values("Escaños",ascending=False)
-    fig = px.bar(df_hemi, x="Partido", y="Escaños", color="Partido", color_discrete_map=PARTIDOS_COLORES)
+    df_hemi = pd.DataFrame({"Partido":list(escanos_totales.keys()),
+                            "Escaños":list(escanos_totales.values())})
+    fig = px.bar(df_hemi,x="Partido",y="Escaños",
+                 color="Partido",
+                 color_discrete_map=PARTIDOS_COLORES)
     st.plotly_chart(fig,use_container_width=True)
-    total = df_hemi["Escaños"].sum()
-    st.write(f"Total escaños asignados: {total:.0f} / 350")
-    mayoria = 176
-    st.write(f"Mayoría absoluta: {mayoria}")
+    st.write("Total escaños:",df_hemi["Escaños"].sum(),"/ 350")
+    st.write("Mayoría absoluta:",176)
 
-# ---------- DESGLOSE PROVINCIAL ----------
+# ---------------- DESGLOSE PROVINCIAL
 with tab2:
-    st.subheader("Datos por Provincia y Reparto de Escaños")
-    st.dataframe(df_prov, use_container_width=True)
+    for prov in datos_prov:
+        st.subheader(prov["Provincia"])
+        fig = go.Figure(go.Bar(
+            x=list(prov["Votos"].values()),
+            y=list(prov["Votos"].keys()),
+            orientation="h",
+            marker_color=[PARTIDOS_COLORES[p] for p in prov["Votos"].keys()]
+        ))
+        st.plotly_chart(fig,use_container_width=True)
+        st.write("Reparto:",prov["Reparto"])
 
-# ---------- RADAR ----------
+# ---------------- RADAR
 with tab3:
-    st.subheader("Impacto Estratégico")
-    categorias = ["Vivienda","Energía","Fiabilidad"]
-    valores = [factor_vivienda,factor_energia,fiabilidad]
-    fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(r=valores, theta=categorias, fill='toself'))
-    fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True,range=[0,100])))
-    st.plotly_chart(fig_radar,use_container_width=True)
+    categorias=["Vivienda","Energía","Fiabilidad"]
+    valores=[factor_vivienda,factor_energia,fiabilidad]
+    fig=go.Figure(go.Scatterpolar(r=valores,theta=categorias,fill="toself"))
+    fig.update_layout(polar=dict(radialaxis=dict(range=[0,100])))
+    st.plotly_chart(fig,use_container_width=True)
 
-# ---------- METODOLOGÍA Y FUENTES ----------
+# ---------------- METODOLOGÍA
 with tab4:
-    st.subheader("Metodología del Cálculo de Escaños")
     st.markdown("""
-**Objetivo:** Obtener datos semanales de tendencias de voto y proyectar escaños dinámicamente.
+### Flujo del Algoritmo (Diagrama Sankey)
 
-**Sidebar - Control de Escenarios:**  
-- Factor Crisis Vivienda: ajusta PP, PSOE, SUMAR según percepción de la crisis.  
-- Factor Energía: ajusta VOX según situación energética.  
-- Fiabilidad Datos Oficiales: simula incertidumbre; ninguna fuente es 100% fiable.
+Ajuste Nacional → Ajuste Territorial → Ruido Estadístico → D’Hondt → Proyección Final
 
-**Narrativa:** Los sliders permiten explorar sensibilidad de resultados frente a cambios políticos y sociales.
-""")
-    st.subheader("Flujo de Cálculo Interactivo (Sankey)")
-    st.markdown("""
-El diagrama Sankey muestra el pipeline del cálculo de escaños:
-- Ajuste Nacional → Ajuste Territorial → Ruido → D’Hondt → Proyección
+El Sankey representa cómo los datos fluyen entre capas del modelo.
+Permite visualizar la arquitectura de cálculo multicapa.
 """)
     fig_flow = go.Figure(go.Sankey(
-        node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5),
-                  label=["Ajuste Nacional","Ajuste Territorial","Ruido","D’Hondt","Proyección"],
-                  color=["#636EFA","#EF553B","#00CC96","#AB63FA","#FFA15A"]),
-        link=dict(source=[0,1,2,3], target=[1,2,3,4], value=[1,1,1,1], color=["#636EFA","#EF553B","#00CC96","#AB63FA"])
+        node=dict(label=["Nacional","Territorial","Ruido","D’Hondt","Resultado"]),
+        link=dict(source=[0,1,2,3],target=[1,2,3,4],value=[1,1,1,1])
     ))
-    fig_flow.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=20))
     st.plotly_chart(fig_flow,use_container_width=True)
 
-    st.subheader("Fuentes y Auditoría")
-    st.markdown("""
-- Datos oficiales: INE, Boletines, históricos.  
-- Encuestas privadas y medios.  
-- Ajustes propios y tendencias recientes.  
+# ---------------- HISTORICO SEMANAL
+with tab5:
+    st.subheader("Tendencia Nacional Semanal")
 
-**Auditoría y Monitoreo:**  
-- Validación semanal de datos y encuestas.  
-- Captura de noticias flash de alto impacto.  
-- Alertas ante discrepancias con resultados oficiales.
-""")
-    st.subheader("Limitaciones")
-    st.markdown("""
-- Proyecciones, no resultados oficiales.  
-- Cambios políticos recientes pueden alterar resultados.  
-- El algoritmo no sustituye conteos oficiales.
-""")
+    if not df_hist.empty:
+        df_hist["Fecha"]=pd.to_datetime(df_hist["Fecha"])
 
-# ---------- PIE DE PÁGINA ----------
+        df_nacional=(df_hist.groupby(["Fecha","Partido"])["Votos"]
+                     .mean().reset_index())
+
+        fig_trend=go.Figure()
+
+        for p in PARTIDOS:
+            df_p=df_nacional[df_nacional["Partido"]==p]
+            if not df_p.empty:
+                fig_trend.add_trace(go.Scatter(
+                    x=df_p["Fecha"],
+                    y=df_p["Votos"],
+                    mode="lines+markers",
+                    name=p,
+                    line=dict(color=PARTIDOS_COLORES[p],width=3)
+                ))
+
+        fig_trend.update_layout(height=500,hovermode="x unified")
+        st.plotly_chart(fig_trend,use_container_width=True)
+
+    st.dataframe(df_hist.sort_values("Fecha",ascending=False),
+                 use_container_width=True)
+
+# ===============================
+# FOOTER
+# ===============================
 st.markdown("---")
-st.markdown("© Miguel Castillo | contacto: [mybloggingnotes@gmail.com](mailto:mybloggingnotes@gmail.com)")
+st.markdown("© M.Castillo  |  mybloggingnotes@gmail.com")
