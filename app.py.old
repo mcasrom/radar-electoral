@@ -62,14 +62,19 @@ PROVINCIAS = list(ESCANOS.keys())
 # SIDEBAR CONTROL
 # ===============================
 st.sidebar.header("Control de Escenarios")
+
 factor_vivienda = st.sidebar.slider("Impacto Crisis Vivienda",0,100,50)
 factor_energia = st.sidebar.slider("Impacto Energía",0,100,50)
 fiabilidad = st.sidebar.slider("Fiabilidad Datos Oficiales (%)",0,100,80)
 
 st.sidebar.markdown("""
-Este panel permite simular escenarios políticos.
-Los datos oficiales no pueden considerarse 100% fiables.
-El objetivo del proyecto es detectar tendencias semanales de voto.
+Este panel permite simular escenarios políticos estructurales.
+
+• Crisis vivienda → Impacto en voto urbano y clases medias  
+• Energía → Impacto en voto conservador y rural  
+• Fiabilidad → Simula incertidumbre estadística  
+
+El objetivo del proyecto es detectar tendencias semanales de decisión de voto.
 """)
 
 # ===============================
@@ -143,7 +148,6 @@ def calcular():
         reparto = dhondt(votos, escanos)
 
         for p in PARTIDOS:
-            # evitar duplicados
             if not ((df_hist["Fecha"]==fecha) &
                     (df_hist["Provincia"]==prov) &
                     (df_hist["Partido"]==p)).any():
@@ -156,7 +160,6 @@ def calcular():
 
     df_hist.to_csv(HIST_FILE,index=False)
 
-    # Ajuste final por seguridad a 350
     total = sum(escanos_totales.values())
     if total != 350:
         diferencia = 350-total
@@ -171,7 +174,7 @@ escanos_totales, datos_prov = calcular()
 # TABS
 # ===============================
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
-["Hemiciclo","Desglose Provincial","Radar Estratégico","Metodología","Histórico Semanal"]
+["Hemiciclo","Desglose Provincial","Radar Estratégico","Metodología y Fuentes","Histórico Semanal"]
 )
 
 # ---------------- HEMICICLO
@@ -206,25 +209,72 @@ with tab3:
     fig.update_layout(polar=dict(radialaxis=dict(range=[0,100])))
     st.plotly_chart(fig,use_container_width=True)
 
-# ---------------- METODOLOGÍA
+# ---------------- METODOLOGÍA COMPLETA
 with tab4:
+
+    st.header("Arquitectura del Modelo")
+
     st.markdown("""
-### Flujo del Algoritmo (Diagrama Sankey)
+Este sistema utiliza un modelo multicapa de simulación electoral:
 
-Ajuste Nacional → Ajuste Territorial → Ruido Estadístico → D’Hondt → Proyección Final
+1. Ajuste Nacional Base  
+2. Ajuste Territorial Provincial  
+3. Introducción de ruido estadístico controlado  
+4. Aplicación del método D’Hondt  
+5. Proyección consolidada de escaños  
 
-El Sankey representa cómo los datos fluyen entre capas del modelo.
-Permite visualizar la arquitectura de cálculo multicapa.
+El diagrama Sankey representa visualmente este flujo de datos.
 """)
+
     fig_flow = go.Figure(go.Sankey(
-        node=dict(label=["Nacional","Territorial","Ruido","D’Hondt","Resultado"]),
+        node=dict(label=["Ajuste Nacional","Ajuste Territorial","Ruido","D’Hondt","Proyección Final"]),
         link=dict(source=[0,1,2,3],target=[1,2,3,4],value=[1,1,1,1])
     ))
     st.plotly_chart(fig_flow,use_container_width=True)
 
-# ---------------- HISTORICO SEMANAL
+    st.header("Gestión y Gobernanza de Fuentes")
+
+    st.markdown("""
+El modelo combina:
+
+• Resultados oficiales históricos  
+• Datos públicos institucionales  
+• Encuestas publicadas  
+• Ajustes propios estructurales  
+• Correcciones por volatilidad  
+
+Ninguna fuente institucional puede considerarse 100% fiable.
+Por ello se introduce un coeficiente de incertidumbre configurable.
+""")
+
+    st.header("Objetivo Estratégico del Proyecto")
+
+    st.markdown("""
+Detectar variaciones semanales en la decisión de voto.
+
+El sistema no pretende sustituir resultados oficiales,
+sino anticipar tendencias estructurales y cambios graduales.
+""")
+
+    st.header("Marco de Auditoría")
+
+    st.markdown("""
+• Validación semanal del histórico  
+• Monitorización de eventos políticos de alto impacto  
+• Revisión de coherencia territorial  
+• Evaluación de desviaciones frente a datos oficiales  
+""")
+
+    st.header("Limitaciones")
+
+    st.markdown("""
+• Modelo probabilístico, no predictivo determinista  
+• Sensible a eventos exógenos bruscos  
+• No sustituye escrutinio oficial  
+""")
+
+# ---------------- HISTORICO
 with tab5:
-    st.subheader("Tendencia Nacional Semanal")
 
     if not df_hist.empty:
         df_hist["Fecha"]=pd.to_datetime(df_hist["Fecha"])
