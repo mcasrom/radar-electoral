@@ -1,0 +1,11 @@
+env/
+historico_semanal.csv
+historico_cyl.csv
+espana_vota.db
+backups/
+logs/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.tmp
