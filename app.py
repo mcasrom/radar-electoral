@@ -884,6 +884,6 @@ with tab6:
 # ---- FOOTER
 st.markdown("---")
 import os as _os, datetime as _dt
-_log = "logs/daily.log"
+_log = "last_ingest.txt"
 _ts = _dt.datetime.fromtimestamp(_os.path.getmtime(_log)).strftime("%Y-%m-%d %H:%M") if _os.path.exists(_log) else "pendiente"
 st.markdown(f"© M.Castillo  |  mybloggingnotes@gmail.com  |  v2.0  |  🕐 Última ingesta: {_ts}")

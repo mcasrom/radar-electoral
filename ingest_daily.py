@@ -449,3 +449,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Timestamp para Streamlit Cloud
+with open('last_ingest.txt', 'w') as f:
+    f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M')))
