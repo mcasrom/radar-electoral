@@ -1,0 +1,62 @@
+# 1. Cronista IIE diario
+0 0 * * * /usr/bin/python3 /home/dietpi/intel_center_odroid/automation/cronista_iie.py && cd /home/dietpi/intel_center_odroid/blog && /usr/local/bin/hugo >> /home/dietpi/intel_center_odroid/automation/cron_log.log 2>&1
+
+# 2. Revisión de Logs (Minuto 0, 20 y 50)
+0,20,50 * * * * /usr/bin/python3 /home/dietpi/scripts/python/revisar_logs.py >> /home/dietpi/revisar_logs.log 2>&1
+
+# 3. Monitor de Seguridad (Minuto 25 y 55)
+25,55 * * * * /home/dietpi/scripts/bash/monitor_seguridad.sh >> /home/dietpi/logs/monitor_seg.log 2>&1
+
+# 4. Backup semanal álbum (Domingos 2:00 AM)
+0 2 * * 0 /home/dietpi/album_familiar/scripts/backup_album.sh
+
+# 5. Deployment semanal álbum (Domingos 3:00 AM)
+0 3 * * 0 /home/dietpi/album_familiar/scripts/weekly_deploy.sh
+
+# 6. Limpieza logs álbum (día 1 cada mes 4:00)
+0 4 1 * * find /home/dietpi/album_familiar/logs -name "*.log" -type f -mtime +90 -delete
+
+# 7. Network report semanal (Sábados 00:30)
+30 0 * * 6 /home/dietpi/scripts/send_network_report.sh weekly
+
+# 8. Network report mensual (Día 1 cada mes 00:30)
+30 0 1 * * /home/dietpi/scripts/send_network_report.sh monthly
+
+# 9. Monitor red al boot
+@reboot /home/dietpi/scripts/network_monitor.sh
+
+# 10. SIEG-Core (cada 30min)
+*/30 * * * * /home/dietpi/SIEG-Core/update_sieg.sh >> /home/dietpi/sieg_cron.log 2>&1
+
+# 11. SIEG-Atlas (cada hora a :15)
+15 * * * * /bin/bash /home/dietpi/SIEG-Atlas/update_atlas.sh >> /home/dietpi/atlas_cron.log 2>&1
+
+# 12. SIEG-Iran (cada hora a :45)
+45 * * * * /bin/bash /home/dietpi/SIEG-Iran/update_iran.sh >> /home/dietpi/iran_cron.log 2>&1
+
+# 13. Hub sync (a :55)
+55 * * * * cp /home/dietpi/SIEG-Core/data/geoint_*.json /home/dietpi/SIEG-Hub/data/core/ ; cp /home/dietpi/SIEG-Atlas/data/live/atlas_*.json /home/dietpi/SIEG-Hub/data/atlas/ ; cp /home/dietpi/SIEG-Iran/data/live/iran_*.json /home/dietpi/SIEG-Hub/data/iran/ ; cd /home/dietpi/SIEG-Hub && git add data/ && git commit -m "data: sync $(date +\%Y-\%m-\%d\ \%H:\%M)" && git push origin main >> /home/dietpi/hub_sync.log 2>&1
+
+# 14. Mantenimiento SIEG (Domingos 2:00)
+0 2 * * 0 /bin/bash /home/dietpi/scripts/sieg_rotate.sh
+
+# 15. Backup SIEG mensual (Día 1 cada mes 3:00)
+0 3 1 * * /bin/bash /home/dietpi/scripts/sieg_backup_monthly.sh
+
+# ==========================
+# España Vota 2026
+# ==========================
+# Pulse diario GitHub (23:40)
+40 23 * * * /home/dietpi/espana-vota-2026/pulse_github.sh
+
+# DESACTIVADO — sustituido por ingest_weekly.py
+# 0 8 * * 1 cd /home/dietpi/espana-vota-2026 && python3 update_data.py
+
+# Ingesta diaria (06:00)
+0 6 * * * /home/dietpi/espana-vota-2026/env/bin/python3 /home/dietpi/espana-vota-2026/ingest_daily.py >> /home/dietpi/espana-vota-2026/logs/daily.log 2>&1
+
+# Ingesta semanal (Domingo 05:00)
+0 5 * * 0 /home/dietpi/espana-vota-2026/env/bin/python3 /home/dietpi/espana-vota-2026/ingest_weekly.py >> /home/dietpi/espana-vota-2026/logs/weekly.log 2>&1
+
+# Salud sistema (07:00 diario)
+0 7 * * * echo "$(date '+%Y-%m-%d %H:%M') RAM:$(free -m | awk 'NR==2{print $3}')MB DISK:$(df -h / | awk 'NR==2{print $5}')" >> /home/dietpi/espana-vota-2026/logs/salud.log 2>&1
