@@ -450,6 +450,16 @@ def main():
 if __name__ == "__main__":
     main()
 
+# Exportar CSV diario para Streamlit Cloud
+import sqlite3 as _sq
+_conn = _sq.connect("espana_vota.db")
+_rows = _conn.execute("SELECT fecha, provincia, partido, votos_pct, escanos FROM historico_nacional ORDER BY fecha DESC, provincia, partido").fetchall()
+with open("historico_semanal.csv", "w") as _f:
+    _f.write("Fecha,Provincia,Partido,Votos,Escaños\n")
+    for _r in _rows:
+        _f.write(f"{_r[0]},{_r[1]},{_r[2]},{_r[3]:.4f},{_r[4]}\n")
+_conn.close()
+
 # Timestamp para Streamlit Cloud
 with open('last_ingest.txt', 'w') as f:
     f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M')))
