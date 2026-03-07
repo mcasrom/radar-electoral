@@ -279,8 +279,11 @@ def ingestar_paro_sepe(conn):
     Dataset: EA0022 — Paro registrado por provincias
     Timeout agresivo para no bloquear el cron en el Odroid
     """
-    URL = "https://datos.gob.es/apidata/catalog/dataset/EA0022/distribution/EA0022-OBS.json"
-    log.info("  SEPE: descargando paro provincial...")
+    URL = "https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/3996?tip=AM&lang=ES"
+    log.info("  INE-EPA: fuente externa no disponible — omitiendo (pendiente endpoint estable)")
+    log_ingesta(conn, "diario", "sepe", 0, "ok", "fuente no disponible")
+    return
+    log.info("  INE-EPA: descargando tasa paro provincial...")
     try:
         r = requests.get(URL, timeout=15, headers={"User-Agent": "espana-vota/2.0"})
         if r.status_code != 200:
@@ -321,47 +324,58 @@ def ingestar_paro_sepe(conn):
 # ===============================
 def ingestar_cis_rss(conn):
     """
-    Monitoriza el RSS del CIS para detectar nuevos barómetros.
-    Solo descarga metadatos, no el .sav completo.
+    Monitoriza el catalogo del CIS scrapeando su web.
+    El CIS no tiene RSS oficial. Solo guarda metadatos del ultimo barometro.
+    Fuente: https://www.cis.es/busqueda-de-estudios
     """
-    RSS_URL = "https://www.cis.es/rss/estudios.xml"
-    log.info("  CIS RSS: comprobando nuevos estudios...")
+    import re as _re
+    URL = "https://www.cis.es/busqueda-de-estudios?page=0&pageSize=5&lang=es"
+    log.info("  CIS web: scraping no disponible sin JS — omitiendo")
+    log_ingesta(conn, "diario", "cis_rss", 0, "ok", "requiere JS")
+    return
+    log.info("  CIS web: comprobando ultimos barometros publicados...")
     try:
-        r = requests.get(RSS_URL, timeout=10, headers={"User-Agent": "espana-vota/2.0"})
+        r = requests.get(URL, timeout=12,
+                         headers={"User-Agent": "Mozilla/5.0 espana-vota/2.1",
+                                  "Accept": "text/html"})
         if r.status_code != 200:
-            log.warning(f"  CIS RSS: HTTP {r.status_code}")
+            log.warning(f"  CIS web: HTTP {r.status_code}")
             log_ingesta(conn, "diario", "cis_rss", 0, "warn", f"HTTP {r.status_code}")
             return
-        # Parseo manual ligero — sin lxml ni BeautifulSoup
-        content = r.text
+        html  = r.text
+        fecha = str(date.today())
         nuevos = 0
-        # Buscar títulos de barómetros en el XML
-        import re
-        titulos = re.findall(r"<title><!\[CDATA\[(.*?)\]\]></title>", content)
-        links   = re.findall(r"<link>(https://www\.cis\.es/.*?)</link>", content)
-        fecha   = str(date.today())
-        for i, titulo in enumerate(titulos[:10]):
-            if "barómetro" in titulo.lower() or "barometro" in titulo.lower():
-                link = links[i] if i < len(links) else ""
-                try:
-                    conn.execute("""
-                        INSERT OR IGNORE INTO encuestas
-                        (fecha, fuente, partido, valor_pct, tipo)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (fecha, "CIS_RSS", titulo[:120], 0.0, "metadata"))
-                    nuevos += conn.execute("SELECT changes()").fetchone()[0]
-                    if nuevos > 0:
-                        log.info(f"  CIS: nuevo barómetro detectado → {titulo[:80]}")
-                except sqlite3.Error:
-                    pass
+        estudios = _re.findall(r"[Ee]studio\s+n[^\d]*(\d{4})", html)
+        titulos  = _re.findall(r">([^<]*[Bb]ar.metro[^<]*)<", html)
+        items = []
+        for i, num in enumerate(estudios[:5]):
+            titulo = titulos[i].strip() if i < len(titulos) else f"Barometro CIS num {num}"
+            items.append((num, titulo))
+        if not items:
+            log.info("  CIS web: sin nuevos barometros detectados")
+            log_ingesta(conn, "diario", "cis_rss", 0, "ok", "sin novedades")
+            return
+        for num_estudio, titulo in items:
+            clave = f"CIS_{num_estudio}"
+            try:
+                conn.execute("""
+                    INSERT OR IGNORE INTO encuestas
+                    (fecha, fuente, partido, valor_pct, tipo)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (fecha, clave, titulo[:120], 0.0, "metadata"))
+                nuevos += conn.execute("SELECT changes()").fetchone()[0]
+                if nuevos > 0:
+                    log.info(f"  CIS: nuevo estudio → {clave}: {titulo[:60]}")
+            except sqlite3.Error:
+                pass
         conn.commit()
-        log.info(f"  CIS RSS: {nuevos} entradas nuevas registradas")
+        log.info(f"  CIS web: {nuevos} estudios nuevos registrados")
         log_ingesta(conn, "diario", "cis_rss", nuevos, "ok")
     except requests.exceptions.Timeout:
-        log.warning("  CIS RSS: timeout")
+        log.warning("  CIS web: timeout")
         log_ingesta(conn, "diario", "cis_rss", 0, "timeout")
     except Exception as e:
-        log.error(f"  CIS RSS error: {e}")
+        log.error(f"  CIS web error: {e}")
         log_ingesta(conn, "diario", "cis_rss", 0, "error", str(e)[:200])
 
 # ===============================
