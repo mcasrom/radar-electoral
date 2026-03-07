@@ -117,6 +117,22 @@ factor_energia = st.sidebar.slider("⚡ Impacto Energía", 0, 100, 50)
 fiabilidad = st.sidebar.slider("📊 Fiabilidad Datos Oficiales (%)", 0, 100, 80)
 
 st.sidebar.markdown("---")
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🌿 Escenarios Galicia")
+factor_despoblacion_gal = st.sidebar.slider("Despoblación Galicia",   0, 100, 60)
+factor_bng_urbano       = st.sidebar.slider("BNG Urbano (Vigo/Coruña)",0,100, 55)
+factor_pesca            = st.sidebar.slider("Sector Pesquero",         0, 100, 50)
+factor_autogobierno_gal = st.sidebar.slider("Autogobierno Galicia",    0, 100, 45)
+umbral_gal              = st.sidebar.slider("Umbral electoral Gal.(%)",3, 5,   5)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🏙️ Escenarios Madrid")
+factor_vivienda_mad = st.sidebar.slider("Vivienda Madrid",      0, 100, 70)
+factor_ayuso        = st.sidebar.slider("Efecto Ayuso",         0, 100, 65)
+factor_fiscal       = st.sidebar.slider("Fiscalidad Baja",      0, 100, 60)
+factor_migracion    = st.sidebar.slider("Migración Madrid",     0, 100, 55)
+umbral_mad          = st.sidebar.slider("Umbral Madrid (%)",    3, 5,    5)
 st.sidebar.subheader("🌞 Escenarios Andalucía")
 factor_desempleo_and  = st.sidebar.slider("Desempleo Andalucía",     0, 100, 65)
 factor_vivienda_and   = st.sidebar.slider("Vivienda/Turismo And.",    0, 100, 60)
@@ -642,15 +658,727 @@ def calcular_and(f_desempleo, f_vivienda_and, f_agua, f_rural_urbano, umbral_and
 # ===============================
 # INSTRUCCIÓN: sustituir la línea de declaración de tabs por:
 #
-# tab1,tab2,tab3,tab4,tab5,tab6,tab7 = st.tabs([
-#     "🏛️ Hemiciclo Nacional",
-#     "🗺️ Desglose Provincial",
-#     "📡 Radar Estratégico",
-#     "📋 Metodología y Fuentes",
-#     "📈 Histórico Semanal",
-#     "🏰 Castilla y León",
-#     "🌞 Andalucía"
-# ])
+
+# ===============================
+# GALICIA — DATOS ELECTORALES
+# ===============================
+# Composición actual Parlamento de Galicia (elecciones febrero 2024, 76 escaños)
+GAL_COMPOSICION_ACTUAL = {
+    "PP":                    40,   # mayoría absoluta Rueda
+    "BNG":                   19,   # máximo histórico
+    "PSOE":                   9,
+    "Sumar":                  5,
+    "VOX":                    2,
+    "Democracia Ourensana":   1,   # partido local Ourense
+    "OTROS":                  0
+}
+
+PARTIDOS_GAL = ["PP", "BNG", "PSOE", "Sumar", "VOX", "DO", "OTROS"]
+COLORES_GAL = {
+    "PP":    "#1f77b4",
+    "BNG":   "#2ca02c",   # verde nacionalista
+    "PSOE":  "#d62728",
+    "Sumar": "#9467bd",
+    "VOX":   "#17becf",
+    "DO":    "#e67e22",   # Democracia Ourensana
+    "OTROS": "#c7c7c7"
+}
+
+# Intención de voto base Galicia 2026 (estimación estructural)
+# PP consolida; BNG en alza estructural; PSOE débil; Sumar estable
+BASE_GAL = {
+    "PP":    38.0,   # hegemonía histórica reforzada
+    "BNG":   24.0,   # crecimiento estructural, Ana Pontón
+    "PSOE":  13.0,   # mínimos históricos en Galicia
+    "Sumar":  7.0,
+    "VOX":    4.5,
+    "DO":     2.0,   # solo relevante en Ourense
+    "OTROS": 11.5
+}
+
+# Escaños por circunscripción — Parlamento de Galicia (76 diputados)
+ESCANOS_GAL = {
+    "A Coruña":   24,
+    "Lugo":       15,
+    "Ourense":    14,
+    "Pontevedra": 23
+}
+TOTAL_GAL = sum(ESCANOS_GAL.values())  # 76
+
+# ===============================
+# FUNCIONES GALICIA
+# ===============================
+
+
+def ajustar_escenario_gal(base_gal,
+                           f_despoblacion_gal, f_bng_urbano,
+                           f_pesca, f_autogobierno):
+    """
+    Ajuste estructural para Galicia.
+    Variables: despoblación interior, ascenso urbano BNG,
+               sector pesquero, reivindicación autogobierno.
+    """
+    ajuste = base_gal.copy()
+
+    # Despoblación interior → PP se beneficia en rural profundo
+    ajuste["PP"]  += (f_despoblacion_gal - 50) * 0.015
+    ajuste["BNG"] -= (f_despoblacion_gal - 50) * 0.008
+
+    # BNG urbano → Vigo/Coruña, jóvenes, feminismo, cultura galega
+    ajuste["BNG"]   += (f_bng_urbano - 50) * 0.020
+    ajuste["PSOE"]  -= (f_bng_urbano - 50) * 0.010
+    ajuste["Sumar"] -= (f_bng_urbano - 50) * 0.005
+
+    # Pesca → moviliza voto costero conservador (PP) y nacionalista (BNG)
+    ajuste["PP"]  += (f_pesca - 50) * 0.008
+    ajuste["BNG"] += (f_pesca - 50) * 0.006
+
+    # Autogobierno → BNG se beneficia claramente
+    ajuste["BNG"] += (f_autogobierno - 50) * 0.018
+    ajuste["PP"]  -= (f_autogobierno - 50) * 0.010
+
+    for p in ajuste:
+        ajuste[p] = max(0.0, ajuste[p])
+    return normalizar(ajuste)
+
+
+def ajustar_provincial_gal(base, provincia_gal):
+    """Ajustes por perfil histórico-electoral de cada provincia gallega."""
+    datos = base.copy()
+
+    # A Coruña: más urbana, BNG fuerte (Ferrol, Coruña ciudad), PSOE competitivo
+    if provincia_gal == "A Coruña":
+        datos["BNG"]  += 3.0
+        datos["PSOE"] += 1.5
+        datos["PP"]   -= 2.0
+
+    # Pontevedra: Vigo — BNG máximo, industria, jóvenes; Pontevedra ciudad más equilibrada
+    if provincia_gal == "Pontevedra":
+        datos["BNG"]  += 4.0
+        datos["PP"]   -= 2.5
+        datos["PSOE"] += 1.0
+
+    # Lugo: rural profundo, PP muy fuerte, envejecimiento extremo
+    if provincia_gal == "Lugo":
+        datos["PP"]   += 4.0
+        datos["BNG"]  -= 2.0
+        datos["PSOE"] -= 1.0
+
+    # Ourense: PP+DO, caciquismo histórico, más conservador
+    if provincia_gal == "Ourense":
+        datos["PP"]  += 3.0
+        datos["DO"]  += 4.5   # Democracia Ourensana — Gonzalo Pérez Jácome
+        datos["BNG"] -= 1.5
+        datos["VOX"] += 1.0
+
+    ruido = (100 - fiabilidad) / 100
+    for p in datos:
+        datos[p] += random.uniform(-ruido * 2.5, ruido * 2.5)
+        datos[p] = max(0.0, datos[p])
+    return normalizar(datos)
+
+
+def aplicar_umbral_gal(votos, umbral_pct):
+    votos_filtrados = {p: v for p, v in votos.items() if v >= umbral_pct}
+    return normalizar(votos_filtrados)
+
+
+def calcular_gal(f_despoblacion_gal, f_bng_urbano,
+                  f_pesca, f_autogobierno, umbral_gal):
+    """Cálculo completo del Parlamento de Galicia."""
+    base_esc  = ajustar_escenario_gal(
+        BASE_GAL, f_despoblacion_gal, f_bng_urbano, f_pesca, f_autogobierno
+    )
+    escanos_totales = {p: 0 for p in PARTIDOS_GAL}
+    datos_prov = []
+
+    for prov, num_esc in ESCANOS_GAL.items():
+        votos_raw = ajustar_provincial_gal(base_esc.copy(), prov)
+        votos     = aplicar_umbral_gal(votos_raw, umbral_gal)
+        reparto   = dhondt(votos, num_esc)
+
+        for p in PARTIDOS_GAL:
+            escanos_totales[p] = escanos_totales.get(p, 0) + reparto.get(p, 0)
+
+        datos_prov.append({
+            "Provincia":     prov,
+            "Escaños_total": num_esc,
+            "Reparto":       reparto,
+            "Votos":         votos,
+            "Votos_raw":     votos_raw
+        })
+
+    return escanos_totales, datos_prov
+
+
+# ===============================
+# RENDER TAB GALICIA
+# ===============================
+
+def render_tab_galicia(escanos_gal, datos_prov_gal,
+                        polarizacion_gal, nep_gal, lsq_gal,
+                        f_despoblacion_gal, f_bng_urbano,
+                        f_pesca, f_autogobierno):
+
+    st.header("🌿 Galicia — Laboratorio Electoral Autonómico")
+    st.markdown("""
+    > **Contexto:** Galicia es el feudo histórico del PP pero vive una transformación
+    > estructural con el ascenso del BNG como alternativa nacional-progresista.
+    > Las elecciones de febrero 2024 consolidaron este bipartidismo PP-BNG,
+    > dejando al PSOE en mínimos históricos.
+    """)
+
+    ma_gal = (TOTAL_GAL // 2) + 1  # 39
+
+    # ---- KPIs
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("NEP Galicia", nep_gal,
+                help="Número Efectivo de Partidos")
+    col2.metric("Polarización", f"{polarizacion_gal:.3f}")
+    col3.metric("Gallagher (LSq)", f"{lsq_gal:.1f}")
+    col4.metric("Diputados totales", TOTAL_GAL)
+
+    st.markdown("---")
+
+    # ---- COMPOSICIÓN ACTUAL vs PROYECCIÓN
+    st.subheader("📊 Composición Real 2024 vs. Proyección Simulada")
+    col_act, col_sim = st.columns(2)
+
+    with col_act:
+        st.markdown("**Parlamento de Galicia 2024 (Real)**")
+        df_actual = pd.DataFrame({
+            "Partido":    list(GAL_COMPOSICION_ACTUAL.keys()),
+            "Diputados":  list(GAL_COMPOSICION_ACTUAL.values())
+        })
+        df_actual = df_actual[df_actual["Diputados"] > 0]
+        fig_act = px.bar(df_actual, x="Partido", y="Diputados",
+                         color="Partido", color_discrete_map=COLORES_GAL,
+                         text="Diputados", title="Resultado Real 2024")
+        fig_act.update_traces(textposition="outside")
+        fig_act.add_hline(y=ma_gal, line_dash="dash", line_color="red",
+                          annotation_text=f"Mayoría Absoluta ({ma_gal})")
+        st.plotly_chart(fig_act, use_container_width=True)
+        pp_r = GAL_COMPOSICION_ACTUAL["PP"]
+        st.success(f"**Gobierno actual:** PP ({pp_r}) — mayoría absoluta  |  MA: {ma_gal}")
+
+    with col_sim:
+        st.markdown("**Proyección Simulada (Escenario Actual)**")
+        df_sim = pd.DataFrame({
+            "Partido":   list(escanos_gal.keys()),
+            "Diputados": list(escanos_gal.values())
+        })
+        df_sim = df_sim[df_sim["Diputados"] > 0].sort_values("Diputados", ascending=False)
+        fig_sim = px.bar(df_sim, x="Partido", y="Diputados",
+                         color="Partido", color_discrete_map=COLORES_GAL,
+                         text="Diputados", title="Simulación Actual")
+        fig_sim.update_traces(textposition="outside")
+        fig_sim.add_hline(y=ma_gal, line_dash="dash", line_color="red",
+                          annotation_text=f"Mayoría Absoluta ({ma_gal})")
+        st.plotly_chart(fig_sim, use_container_width=True)
+        pp_sim_v = escanos_gal.get("PP", 0)
+        bng_sim  = escanos_gal.get("BNG", 0)
+        estado   = "✅ Mayoría absoluta" if pp_sim_v >= ma_gal else f"❌ PP necesita {ma_gal - pp_sim_v} más"
+        st.info(f"**PP:** {pp_sim_v}  |  **BNG:** {bng_sim}  |  {estado}")
+
+    # ---- DELTA
+    st.subheader("🔄 Variación Estimada respecto a 2024")
+    delta_data = []
+    mapa_actual = {"PP":"PP","BNG":"BNG","PSOE":"PSOE",
+                   "Sumar":"Sumar","VOX":"VOX",
+                   "Democracia Ourensana":"DO","OTROS":"OTROS"}
+    for p in PARTIDOS_GAL:
+        clave_actual = {v: k for k, v in mapa_actual.items()}.get(p, p)
+        actual_v   = GAL_COMPOSICION_ACTUAL.get(clave_actual,
+                     GAL_COMPOSICION_ACTUAL.get(p, 0))
+        simulado_v = escanos_gal.get(p, 0)
+        delta_data.append({
+            "Partido": p,
+            "2024 (Real)": actual_v,
+            "Simulado": simulado_v,
+            "Δ Cambio": simulado_v - actual_v
+        })
+    df_delta = pd.DataFrame(delta_data)
+    fig_delta = px.bar(df_delta, x="Partido", y="Δ Cambio",
+                       color="Δ Cambio", color_continuous_scale="RdYlGn",
+                       title="Variación respecto a 2024", text="Δ Cambio")
+    fig_delta.add_hline(y=0, line_color="black", line_width=1)
+    fig_delta.update_traces(textposition="outside")
+    st.plotly_chart(fig_delta, use_container_width=True)
+
+    # ---- DESGLOSE PROVINCIAL
+    st.subheader("🗺️ Desglose Provincial Galicia")
+    prov_sel = st.selectbox("Provincia gallega", list(ESCANOS_GAL.keys()),
+                             key="selectbox_gal")
+    dp_gal = next(d for d in datos_prov_gal if d["Provincia"] == prov_sel)
+
+    col_pv, col_pe = st.columns(2)
+    with col_pv:
+        df_v = pd.DataFrame({
+            "Partido":  list(dp_gal["Votos"].keys()),
+            "Voto (%)": list(dp_gal["Votos"].values())
+        })
+        df_v = df_v[df_v["Voto (%)"] > 0.5].sort_values("Voto (%)", ascending=True)
+        fig_v = go.Figure(go.Bar(
+            x=df_v["Voto (%)"], y=df_v["Partido"], orientation="h",
+            marker_color=[COLORES_GAL.get(p, "#999") for p in df_v["Partido"]],
+            text=df_v["Voto (%)"].round(1), textposition="outside"
+        ))
+        fig_v.update_layout(height=300, xaxis_title="% Voto",
+                            title=f"Intención de Voto — {prov_sel}")
+        st.plotly_chart(fig_v, use_container_width=True)
+
+    with col_pe:
+        rep = {p: v for p, v in dp_gal["Reparto"].items() if v > 0}
+        if rep:
+            fig_e = px.pie(values=list(rep.values()), names=list(rep.keys()),
+                           color=list(rep.keys()),
+                           color_discrete_map=COLORES_GAL, hole=0.4,
+                           title=f"D'Hondt — {prov_sel} ({ESCANOS_GAL[prov_sel]} diputados)")
+            st.plotly_chart(fig_e, use_container_width=True)
+
+    # ---- COALICIONES
+    st.subheader("🤝 Análisis de Coaliciones — Parlamento de Galicia")
+    pp_s    = escanos_gal.get("PP", 0)
+    bng_s   = escanos_gal.get("BNG", 0)
+    psoe_s  = escanos_gal.get("PSOE", 0)
+    sumar_s = escanos_gal.get("Sumar", 0)
+    vox_s   = escanos_gal.get("VOX", 0)
+    do_s    = escanos_gal.get("DO", 0)
+
+    coaliciones = {
+        "PP solo":                pp_s,
+        "PP + VOX":               pp_s + vox_s,
+        "PP + DO":                pp_s + do_s,
+        "BNG solo":               bng_s,
+        "BNG + PSOE + Sumar":     bng_s + psoe_s + sumar_s,
+        "BNG + PSOE + Sumar + DO":bng_s + psoe_s + sumar_s + do_s,
+    }
+    df_coal = pd.DataFrame({
+        "Coalición": list(coaliciones.keys()),
+        "Diputados": list(coaliciones.values())
+    })
+    df_coal["¿Mayoría?"] = df_coal["Diputados"].apply(
+        lambda x: "✅ Mayoría" if x >= ma_gal else f"❌ Faltan {ma_gal - x}"
+    )
+    fig_coal = px.bar(df_coal, x="Coalición", y="Diputados",
+                      text="Diputados", color="Diputados",
+                      color_continuous_scale="Greens",
+                      title=f"Escenarios de Coalición (MA: {ma_gal})")
+    fig_coal.add_hline(y=ma_gal, line_dash="dash", line_color="red")
+    fig_coal.update_traces(textposition="outside")
+    st.plotly_chart(fig_coal, use_container_width=True)
+    st.dataframe(df_coal, use_container_width=True)
+
+    # ---- RADAR
+    st.subheader("📡 Variables Estructurales Galicia")
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        cat_gal = ["Despoblación", "BNG Urbano", "Pesca", "Autogobierno", "Fiabilidad"]
+        val_gal = [f_despoblacion_gal, f_bng_urbano, f_pesca, f_autogobierno, fiabilidad]
+        fig_rad = go.Figure(go.Scatterpolar(
+            r=val_gal, theta=cat_gal, fill="toself",
+            line_color="#2ca02c", name="Galicia"
+        ))
+        fig_rad.update_layout(
+            polar=dict(radialaxis=dict(range=[0, 100])),
+            title="Perfil de Riesgo Electoral Galicia"
+        )
+        st.plotly_chart(fig_rad, use_container_width=True)
+
+    with col_r2:
+        votos_matrix = []
+        for dp in datos_prov_gal:
+            row = {"Provincia": dp["Provincia"]}
+            for p in PARTIDOS_GAL:
+                row[p] = round(dp["Votos"].get(p, 0), 1)
+            votos_matrix.append(row)
+        df_heat = pd.DataFrame(votos_matrix).set_index("Provincia")
+        fig_heat = px.imshow(df_heat, color_continuous_scale="Greens",
+                             title="% Intención de Voto por Provincia",
+                             text_auto=True)
+        st.plotly_chart(fig_heat, use_container_width=True)
+
+    # ---- NOTA METODOLÓGICA
+    with st.expander("📋 Nota Metodológica — Módulo Galicia"):
+        st.markdown(f"""
+**Circunscripciones:** 4 provincias | **Total diputados:** {TOTAL_GAL} | **Mayoría absoluta:** {ma_gal}  
+**Umbral electoral:** 5% por circunscripción (Ley Electoral de Galicia)  
+**Base:** Resultado real febrero 2024 con ajuste estructural 2026  
+
+**Variables estructurales específicas:**
+- **Despoblación:** Lugo y Ourense pierden población sistemáticamente. Refuerza voto conservador rural PP.
+- **BNG Urbano:** Ascenso en Vigo, Coruña, Santiago. Jóvenes, feminismo, cultura galega. Variable clave de tendencia.
+- **Pesca:** Sector estratégico en costa atlántica. Moviliza tanto PP (gestión) como BNG (soberanía).
+- **Autogobierno:** Reivindicación de mayor autogobierno → beneficia BNG directamente.
+
+**Perfiles provinciales:**
+- **A Coruña:** BNG fuerte en ciudad y Ferrol. PP sólido en rural. PSOE residual.
+- **Pontevedra:** Vigo es el bastión del BNG. Mayor dinamismo demográfico y económico.
+- **Lugo:** PP hegemónico. Rural extremo. Envejecimiento más acusado de Galicia.
+- **Ourense:** PP+DO (Jácome). Caciquismo histórico. BNG débil. VOX con presencia.
+
+**Limitaciones:**
+- DO (Democracia Ourensana) con alta volatilidad — dependiente de figura de Jácome
+- BNG en crecimiento estructural difícil de modelar con datos históricos
+- Umbral 5% elimina partidos pequeños con presencia real en alguna circunscripción
+        """)
+
+
+# ===============================
+# MADRID — DATOS ELECTORALES
+# ===============================
+# Composición actual Asamblea de Madrid (elecciones mayo 2023, 135 escaños)
+MAD_COMPOSICION_ACTUAL = {
+    "PP":          71,   # mayoría absoluta Ayuso
+    "Más Madrid":  30,
+    "PSOE":        27,
+    "VOX":         13,
+    "Cs":           0,   # desaparecido
+    "OTROS":        0
+}
+
+PARTIDOS_MAD = ["PP", "Más Madrid", "PSOE", "VOX", "Sumar", "OTROS"]
+COLORES_MAD = {
+    "PP":         "#1f77b4",
+    "Más Madrid": "#00b050",   # verde Más Madrid
+    "PSOE":       "#d62728",
+    "VOX":        "#2ca02c",
+    "Sumar":      "#9467bd",
+    "OTROS":      "#c7c7c7"
+}
+
+# Intención de voto base Madrid 2026 (estimación estructural)
+# PP muy fuerte; Más Madrid consolida espacio; PSOE recupera algo; VOX baja
+BASE_MAD = {
+    "PP":         40.0,   # efecto Ayuso consolidado
+    "Más Madrid": 18.0,   # alternativa progresista urbana
+    "PSOE":       17.0,   # recuperación lenta
+    "VOX":         9.5,   # bajada tras máximos 2021
+    "Sumar":       7.0,   # fragmentación izquierda
+    "OTROS":       8.5
+}
+
+# Madrid: circunscripción ÚNICA — 135 escaños
+ESCANOS_MAD = {"Madrid": 135}
+TOTAL_MAD   = 135
+
+# Zonas electorales para análisis interno (no circunscripciones legales)
+ZONAS_MAD = {
+    "Madrid Capital Norte":  {"PP": +5, "Más Madrid": +3, "VOX": +2, "PSOE": -3},
+    "Madrid Capital Sur":    {"PSOE": +4, "Más Madrid": +2, "PP": -4, "Sumar": +2},
+    "Madrid Capital Centro": {"Más Madrid": +5, "PP": +2, "PSOE": +1, "VOX": -2},
+    "Corona Metropolitana":  {"PP": +6, "VOX": +3, "PSOE": -2, "Más Madrid": -3},
+    "Sierra y Rural":        {"PP": +8, "VOX": +4, "PSOE": -4, "Más Madrid": -5},
+}
+
+# ===============================
+# FUNCIONES MADRID
+# ===============================
+
+
+def ajustar_escenario_mad(base_mad,
+                           f_vivienda_mad, f_ayuso,
+                           f_fiscal, f_migracion):
+    """
+    Ajuste estructural para Madrid.
+    Variables: crisis vivienda, efecto Ayuso, fiscalidad baja, migración.
+    """
+    ajuste = base_mad.copy()
+
+    # Vivienda Madrid → penaliza PP, beneficia Más Madrid y PSOE
+    ajuste["PP"]         -= (f_vivienda_mad - 50) * 0.020
+    ajuste["Más Madrid"] += (f_vivienda_mad - 50) * 0.015
+    ajuste["PSOE"]       += (f_vivienda_mad - 50) * 0.008
+
+    # Efecto Ayuso → liderazgo PP, movilización conservadora
+    ajuste["PP"]  += (f_ayuso - 50) * 0.025
+    ajuste["VOX"] -= (f_ayuso - 50) * 0.010   # Ayuso absorbe voto VOX
+
+    # Fiscalidad baja → diferencial competitivo PP, atrae voto liberal
+    ajuste["PP"]         += (f_fiscal - 50) * 0.015
+    ajuste["Más Madrid"] -= (f_fiscal - 50) * 0.008
+
+    # Migración → activa voto VOX y PP en corona metropolitana
+    ajuste["VOX"] += (f_migracion - 50) * 0.012
+    ajuste["PP"]  += (f_migracion - 50) * 0.006
+    ajuste["PSOE"]+= (f_migracion - 50) * 0.004  # también moviliza izquierda
+
+    for p in ajuste:
+        ajuste[p] = max(0.0, ajuste[p])
+    return normalizar(ajuste)
+
+
+def ajustar_zona_mad(base, zona):
+    """Ajustes por zona electoral de Madrid."""
+    datos = base.copy()
+    for p, delta in ZONAS_MAD.get(zona, {}).items():
+        if p in datos:
+            datos[p] += delta
+    ruido = (100 - fiabilidad) / 100
+    for p in datos:
+        datos[p] += random.uniform(-ruido * 2.0, ruido * 2.0)
+        datos[p] = max(0.0, datos[p])
+    return normalizar(datos)
+
+
+def calcular_mad(f_vivienda_mad, f_ayuso, f_fiscal, f_migracion, umbral_mad):
+    """
+    Cálculo Asamblea de Madrid — circunscripción única.
+    Incluye análisis por zonas electorales internas.
+    """
+    base_esc = ajustar_escenario_mad(
+        BASE_MAD, f_vivienda_mad, f_ayuso, f_fiscal, f_migracion
+    )
+    # Aplicar umbral
+    votos_filtrados = {p: v for p, v in base_esc.items() if v >= umbral_mad}
+    votos = normalizar(votos_filtrados)
+    reparto = dhondt(votos, TOTAL_MAD)
+
+    # Análisis por zonas (informativo, no afecta al reparto legal)
+    datos_zonas = []
+    for zona in ZONAS_MAD:
+        votos_zona = ajustar_zona_mad(base_esc.copy(), zona)
+        datos_zonas.append({
+            "Zona":   zona,
+            "Votos":  votos_zona,
+            "Reparto_estimado": dhondt(
+                {p: v for p, v in votos_zona.items() if v >= umbral_mad},
+                round(TOTAL_MAD * 0.2)  # ~27 escaños por zona estimado
+            )
+        })
+
+    return reparto, votos, datos_zonas
+
+
+# ===============================
+# RENDER TAB MADRID
+# ===============================
+
+def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
+                       polarizacion_mad, nep_mad, lsq_mad,
+                       f_vivienda_mad, f_ayuso, f_fiscal, f_migracion):
+
+    st.header("🏙️ Madrid — Laboratorio Electoral Autonómico")
+    st.markdown("""
+    > **Contexto:** Madrid es la CCAA más atípica del sistema español — circunscripción
+    > única de 135 escaños, alta fragmentación urbana, y el laboratorio del modelo
+    > fiscal diferencial del PP (Ayuso). La izquierda está fragmentada entre
+    > Más Madrid, PSOE y Sumar, dificultando una alternativa de gobierno cohesionada.
+    """)
+
+    ma_mad = (TOTAL_MAD // 2) + 1  # 68
+
+    # ---- KPIs
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("NEP Madrid", nep_mad,
+                help="Número Efectivo de Partidos")
+    col2.metric("Polarización", f"{polarizacion_mad:.3f}")
+    col3.metric("Gallagher (LSq)", f"{lsq_mad:.1f}")
+    col4.metric("Diputados totales", TOTAL_MAD)
+
+    st.markdown("---")
+
+    # ---- COMPOSICIÓN ACTUAL vs PROYECCIÓN
+    st.subheader("📊 Composición Real 2023 vs. Proyección Simulada")
+    col_act, col_sim = st.columns(2)
+
+    with col_act:
+        st.markdown("**Asamblea de Madrid 2023 (Real)**")
+        df_actual = pd.DataFrame({
+            "Partido":    list(MAD_COMPOSICION_ACTUAL.keys()),
+            "Diputados":  list(MAD_COMPOSICION_ACTUAL.values())
+        })
+        df_actual = df_actual[df_actual["Diputados"] > 0]
+        fig_act = px.bar(df_actual, x="Partido", y="Diputados",
+                         color="Partido", color_discrete_map=COLORES_MAD,
+                         text="Diputados", title="Resultado Real 2023")
+        fig_act.update_traces(textposition="outside")
+        fig_act.add_hline(y=ma_mad, line_dash="dash", line_color="red",
+                          annotation_text=f"Mayoría Absoluta ({ma_mad})")
+        st.plotly_chart(fig_act, use_container_width=True)
+        pp_r = MAD_COMPOSICION_ACTUAL["PP"]
+        st.success(f"**Gobierno actual:** PP ({pp_r}) — mayoría absoluta  |  MA: {ma_mad}")
+
+    with col_sim:
+        st.markdown("**Proyección Simulada (Escenario Actual)**")
+        df_sim = pd.DataFrame({
+            "Partido":   list(reparto_mad.keys()),
+            "Diputados": list(reparto_mad.values())
+        })
+        df_sim = df_sim[df_sim["Diputados"] > 0].sort_values("Diputados", ascending=False)
+        fig_sim = px.bar(df_sim, x="Partido", y="Diputados",
+                         color="Partido", color_discrete_map=COLORES_MAD,
+                         text="Diputados", title="Simulación Actual")
+        fig_sim.update_traces(textposition="outside")
+        fig_sim.add_hline(y=ma_mad, line_dash="dash", line_color="red",
+                          annotation_text=f"Mayoría Absoluta ({ma_mad})")
+        st.plotly_chart(fig_sim, use_container_width=True)
+        pp_sim_v = reparto_mad.get("PP", 0)
+        mm_sim   = reparto_mad.get("Más Madrid", 0)
+        estado   = "✅ Mayoría absoluta" if pp_sim_v >= ma_mad else f"❌ PP necesita {ma_mad - pp_sim_v} más"
+        st.info(f"**PP:** {pp_sim_v}  |  **Más Madrid:** {mm_sim}  |  {estado}")
+
+    # ---- DELTA
+    st.subheader("🔄 Variación Estimada respecto a 2023")
+    delta_data = []
+    for p in PARTIDOS_MAD:
+        actual_v   = MAD_COMPOSICION_ACTUAL.get(p, 0)
+        simulado_v = reparto_mad.get(p, 0)
+        delta_data.append({
+            "Partido":     p,
+            "2023 (Real)": actual_v,
+            "Simulado":    simulado_v,
+            "Δ Cambio":    simulado_v - actual_v
+        })
+    df_delta = pd.DataFrame(delta_data)
+    fig_delta = px.bar(df_delta, x="Partido", y="Δ Cambio",
+                       color="Δ Cambio", color_continuous_scale="RdYlGn",
+                       title="Variación respecto a 2023", text="Δ Cambio")
+    fig_delta.add_hline(y=0, line_color="black", line_width=1)
+    fig_delta.update_traces(textposition="outside")
+    st.plotly_chart(fig_delta, use_container_width=True)
+
+    # ---- ANÁLISIS POR ZONAS
+    st.subheader("🗺️ Análisis por Zonas Electorales")
+    st.markdown("_Madrid tiene circunscripción única — el desglose zonal es analítico, no legal._")
+
+    zona_sel = st.selectbox("Zona electoral", list(ZONAS_MAD.keys()),
+                             key="selectbox_mad")
+    dz = next(d for d in datos_zonas_mad if d["Zona"] == zona_sel)
+
+    col_zv, col_ze = st.columns(2)
+    with col_zv:
+        df_vz = pd.DataFrame({
+            "Partido":  list(dz["Votos"].keys()),
+            "Voto (%)": list(dz["Votos"].values())
+        })
+        df_vz = df_vz[df_vz["Voto (%)"] > 0.5].sort_values("Voto (%)", ascending=True)
+        fig_vz = go.Figure(go.Bar(
+            x=df_vz["Voto (%)"], y=df_vz["Partido"], orientation="h",
+            marker_color=[COLORES_MAD.get(p, "#999") for p in df_vz["Partido"]],
+            text=df_vz["Voto (%)"].round(1), textposition="outside"
+        ))
+        fig_vz.update_layout(height=300, xaxis_title="% Voto",
+                             title=f"Intención de Voto — {zona_sel}")
+        st.plotly_chart(fig_vz, use_container_width=True)
+
+    with col_ze:
+        rep_z = {p: v for p, v in dz["Reparto_estimado"].items() if v > 0}
+        if rep_z:
+            fig_ez = px.pie(values=list(rep_z.values()), names=list(rep_z.keys()),
+                            color=list(rep_z.keys()),
+                            color_discrete_map=COLORES_MAD, hole=0.4,
+                            title=f"Estimación escaños — {zona_sel}")
+            st.plotly_chart(fig_ez, use_container_width=True)
+
+    # ---- COALICIONES
+    st.subheader("🤝 Análisis de Coaliciones — Asamblea de Madrid")
+    pp_s  = reparto_mad.get("PP", 0)
+    mm_s  = reparto_mad.get("Más Madrid", 0)
+    ps_s  = reparto_mad.get("PSOE", 0)
+    vox_s = reparto_mad.get("VOX", 0)
+    su_s  = reparto_mad.get("Sumar", 0)
+
+    coaliciones = {
+        "PP solo":                   pp_s,
+        "PP + VOX":                  pp_s + vox_s,
+        "Más Madrid + PSOE":         mm_s + ps_s,
+        "Más Madrid + PSOE + Sumar": mm_s + ps_s + su_s,
+        "Bloque izquierda completo":  mm_s + ps_s + su_s,
+    }
+    df_coal = pd.DataFrame({
+        "Coalición": list(coaliciones.keys()),
+        "Diputados": list(coaliciones.values())
+    })
+    df_coal["¿Mayoría?"] = df_coal["Diputados"].apply(
+        lambda x: "✅ Mayoría" if x >= ma_mad else f"❌ Faltan {ma_mad - x}"
+    )
+    fig_coal = px.bar(df_coal, x="Coalición", y="Diputados",
+                      text="Diputados", color="Diputados",
+                      color_continuous_scale="Blues",
+                      title=f"Escenarios de Coalición (MA: {ma_mad})")
+    fig_coal.add_hline(y=ma_mad, line_dash="dash", line_color="red")
+    fig_coal.update_traces(textposition="outside")
+    st.plotly_chart(fig_coal, use_container_width=True)
+    st.dataframe(df_coal, use_container_width=True)
+
+    # ---- RADAR
+    st.subheader("📡 Variables Estructurales Madrid")
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        cat_mad = ["Vivienda", "Efecto Ayuso", "Fiscalidad", "Migración", "Fiabilidad"]
+        val_mad = [f_vivienda_mad, f_ayuso, f_fiscal, f_migracion, fiabilidad]
+        fig_rad = go.Figure(go.Scatterpolar(
+            r=val_mad, theta=cat_mad, fill="toself",
+            line_color="#1f77b4", name="Madrid"
+        ))
+        fig_rad.update_layout(
+            polar=dict(radialaxis=dict(range=[0, 100])),
+            title="Perfil de Riesgo Electoral Madrid"
+        )
+        st.plotly_chart(fig_rad, use_container_width=True)
+
+    with col_r2:
+        # Heatmap zonas
+        votos_matrix = []
+        for dz in datos_zonas_mad:
+            row = {"Zona": dz["Zona"]}
+            for p in PARTIDOS_MAD:
+                row[p] = round(dz["Votos"].get(p, 0), 1)
+            votos_matrix.append(row)
+        df_heat = pd.DataFrame(votos_matrix).set_index("Zona")
+        fig_heat = px.imshow(df_heat, color_continuous_scale="RdYlBu_r",
+                             title="% Intención de Voto por Zona",
+                             text_auto=True)
+        st.plotly_chart(fig_heat, use_container_width=True)
+
+    # ---- NOTA METODOLÓGICA
+    with st.expander("📋 Nota Metodológica — Módulo Madrid"):
+        st.markdown(f"""
+**Circunscripción:** Única | **Total diputados:** {TOTAL_MAD} | **Mayoría absoluta:** {ma_mad}  
+**Umbral electoral:** 5% sobre el total de votos válidos  
+**Base:** Resultado real mayo 2023 con ajuste estructural 2026  
+
+**Particularidad metodológica — Circunscripción única:**  
+Madrid es la única CCAA grande con circunscripción única. Esto significa que el
+D'Hondt opera sobre 135 escaños, siendo el sistema más proporcional de España.
+El índice de Gallagher debería ser muy bajo (~2-3). El desglose zonal es **analítico**,
+no legal — sirve para identificar tendencias territoriales dentro de la comunidad.
+
+**Variables estructurales específicas:**
+- **Efecto Ayuso:** Liderazgo carismático con alta capacidad de movilización conservadora.
+  Absorbe voto VOX y genera lealtad en corona metropolitana y sierra.
+- **Vivienda:** Crisis de alquiler especialmente aguda en Madrid capital.
+  Principal vulnerabilidad electoral del PP entre jóvenes y clases medias urbanas.
+- **Fiscalidad baja:** Diferencial competitivo respecto a otras CCAA.
+  Atrae voto liberal y empresarial. Variable defensiva del PP.
+- **Migración:** Variable de alta movilización en corona metropolitana sur.
+  Activa simultáneamente voto VOX/PP y voto progresista.
+
+**Perfiles zonales:**
+- **Capital Norte:** Salamanca, Chamberí, Retiro — PP+VOX muy fuertes
+- **Capital Sur:** Vallecas, Carabanchel, Villaverde — PSOE+Sumar
+- **Capital Centro:** Malasaña, Lavapiés, Chueca — Más Madrid hegemónico
+- **Corona Metropolitana:** Alcorcón, Leganés, Getafe vs Pozuelo, Majadahonda
+- **Sierra y Rural:** PP+VOX dominantes, baja densidad
+
+**Limitaciones:**
+- Cs desaparecido → votos redistribuidos entre PP y PSOE principalmente
+- Alta volatilidad urbana — Madrid capital muy sensible a eventos exógenos
+- Más Madrid y Sumar compiten por mismo electorado → difícil modelar trasvases
+        """)
+
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    "🏛️ Hemiciclo Nacional",
+    "🗺️ Desglose Provincial",
+    "📡 Radar Estratégico",
+    "📋 Metodología y Fuentes",
+    "📈 Histórico Semanal",
+    "🏰 Castilla y León",
+    "🌞 Andalucía",
+    "🌿 Galicia",
+    "🏙️ Madrid"
+])
 #
 # Y añadir en sidebar (junto a los sliders de CyL):
 # st.sidebar.markdown("---")
@@ -910,6 +1638,29 @@ lsq_and          = calcular_sesgo_sistema(votos_and_avg, escanos_and)
 ma_and           = (TOTAL_AND // 2) + 1
 
 
+
+# ===============================
+# EJECUCIÓN — CÁLCULO GALICIA
+# ===============================
+escanos_gal, datos_prov_gal = calcular_gal(
+    factor_despoblacion_gal, factor_bng_urbano,
+    factor_pesca, factor_autogobierno_gal, umbral_gal
+)
+votos_gal_avg = {p: sum(d["Votos"].get(p,0) for d in datos_prov_gal)/len(datos_prov_gal)
+                 for p in PARTIDOS_GAL}
+polarizacion_gal = calcular_indice_polarizacion(votos_gal_avg)
+nep_gal          = calcular_indice_fragmentacion(escanos_gal)
+lsq_gal          = calcular_sesgo_sistema(votos_gal_avg, escanos_gal)
+
+# ===============================
+# EJECUCIÓN — CÁLCULO MADRID
+# ===============================
+reparto_mad, votos_mad, datos_zonas_mad = calcular_mad(
+    factor_vivienda_mad, factor_ayuso, factor_fiscal, factor_migracion, umbral_mad
+)
+polarizacion_mad = calcular_indice_polarizacion(votos_mad)
+nep_mad          = calcular_indice_fragmentacion(reparto_mad)
+lsq_mad          = calcular_sesgo_sistema(votos_mad, reparto_mad)
 # ========== TAB 1: HEMICICLO NACIONAL ==========
 with tab1:
     st.subheader("Proyección de Escaños — Congreso de los Diputados")
@@ -1347,9 +2098,28 @@ with tab7:
         factor_agua, factor_rural_urbano
     )
 
+
+# ========== TAB 8: GALICIA ==========
+with tab8:
+    render_tab_galicia(
+        escanos_gal, datos_prov_gal,
+        polarizacion_gal, nep_gal, lsq_gal,
+        factor_despoblacion_gal, factor_bng_urbano,
+        factor_pesca, factor_autogobierno_gal
+    )
+
+# ========== TAB 9: MADRID ==========
+with tab9:
+    render_tab_madrid(
+        reparto_mad, votos_mad, datos_zonas_mad,
+        polarizacion_mad, nep_mad, lsq_mad,
+        factor_vivienda_mad, factor_ayuso,
+        factor_fiscal, factor_migracion
+    )
+
 # ---- FOOTER
 st.markdown("---")
 import os as _os, datetime as _dt
 _log = "last_ingest.txt"
 _ts = _dt.datetime.fromtimestamp(_os.path.getmtime(_log)).strftime("%Y-%m-%d %H:%M") if _os.path.exists(_log) else "pendiente"
-st.markdown(f"© M.Castillo  |  mybloggingnotes@gmail.com  |  v2.1  |  🕐 Última ingesta: {_ts}")
+st.markdown(f"© M.Castillo  |  mybloggingnotes@gmail.com  |  v2.2  |  🕐 Última ingesta: {_ts}")
