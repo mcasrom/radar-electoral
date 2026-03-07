@@ -857,7 +857,7 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
         fig_act.update_traces(textposition="outside")
         fig_act.add_hline(y=ma_gal, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_gal})")
-        st.plotly_chart(fig_act, use_container_width=True)
+        st.plotly_chart(fig_act, width='stretch')
         pp_r = GAL_COMPOSICION_ACTUAL["PP"]
         st.success(f"**Gobierno actual:** PP ({pp_r}) — mayoría absoluta  |  MA: {ma_gal}")
 
@@ -874,7 +874,7 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
         fig_sim.update_traces(textposition="outside")
         fig_sim.add_hline(y=ma_gal, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_gal})")
-        st.plotly_chart(fig_sim, use_container_width=True)
+        st.plotly_chart(fig_sim, width='stretch')
         pp_sim_v = escanos_gal.get("PP", 0)
         bng_sim  = escanos_gal.get("BNG", 0)
         estado   = "✅ Mayoría absoluta" if pp_sim_v >= ma_gal else f"❌ PP necesita {ma_gal - pp_sim_v} más"
@@ -903,7 +903,7 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
                        title="Variación respecto a 2024", text="Δ Cambio")
     fig_delta.add_hline(y=0, line_color="black", line_width=1)
     fig_delta.update_traces(textposition="outside")
-    st.plotly_chart(fig_delta, use_container_width=True)
+    st.plotly_chart(fig_delta, width='stretch')
 
     # ---- DESGLOSE PROVINCIAL
     st.subheader("🗺️ Desglose Provincial Galicia")
@@ -925,7 +925,7 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
         ))
         fig_v.update_layout(height=300, xaxis_title="% Voto",
                             title=f"Intención de Voto — {prov_sel}")
-        st.plotly_chart(fig_v, use_container_width=True)
+        st.plotly_chart(fig_v, width='stretch')
 
     with col_pe:
         rep = {p: v for p, v in dp_gal["Reparto"].items() if v > 0}
@@ -934,7 +934,7 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
                            color=list(rep.keys()),
                            color_discrete_map=COLORES_GAL, hole=0.4,
                            title=f"D'Hondt — {prov_sel} ({ESCANOS_GAL[prov_sel]} diputados)")
-            st.plotly_chart(fig_e, use_container_width=True)
+            st.plotly_chart(fig_e, width='stretch')
 
     # ---- COALICIONES
     st.subheader("🤝 Análisis de Coaliciones — Parlamento de Galicia")
@@ -966,8 +966,8 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
                       title=f"Escenarios de Coalición (MA: {ma_gal})")
     fig_coal.add_hline(y=ma_gal, line_dash="dash", line_color="red")
     fig_coal.update_traces(textposition="outside")
-    st.plotly_chart(fig_coal, use_container_width=True)
-    st.dataframe(df_coal, use_container_width=True)
+    st.plotly_chart(fig_coal, width='stretch')
+    st.dataframe(df_coal, width='stretch')
 
     # ---- RADAR
     st.subheader("📡 Variables Estructurales Galicia")
@@ -983,7 +983,7 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
             polar=dict(radialaxis=dict(range=[0, 100])),
             title="Perfil de Riesgo Electoral Galicia"
         )
-        st.plotly_chart(fig_rad, use_container_width=True)
+        st.plotly_chart(fig_rad, width='stretch')
 
     with col_r2:
         votos_matrix = []
@@ -996,7 +996,7 @@ def render_tab_galicia(escanos_gal, datos_prov_gal,
         fig_heat = px.imshow(df_heat, color_continuous_scale="Greens",
                              title="% Intención de Voto por Provincia",
                              text_auto=True)
-        st.plotly_chart(fig_heat, use_container_width=True)
+        st.plotly_chart(fig_heat, width='stretch')
 
     # ---- NOTA METODOLÓGICA
     with st.expander("📋 Nota Metodológica — Módulo Galicia"):
@@ -1195,7 +1195,7 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
         fig_act.update_traces(textposition="outside")
         fig_act.add_hline(y=ma_mad, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_mad})")
-        st.plotly_chart(fig_act, use_container_width=True)
+        st.plotly_chart(fig_act, width='stretch')
         pp_r = MAD_COMPOSICION_ACTUAL["PP"]
         st.success(f"**Gobierno actual:** PP ({pp_r}) — mayoría absoluta  |  MA: {ma_mad}")
 
@@ -1212,7 +1212,7 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
         fig_sim.update_traces(textposition="outside")
         fig_sim.add_hline(y=ma_mad, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_mad})")
-        st.plotly_chart(fig_sim, use_container_width=True)
+        st.plotly_chart(fig_sim, width='stretch')
         pp_sim_v = reparto_mad.get("PP", 0)
         mm_sim   = reparto_mad.get("Más Madrid", 0)
         estado   = "✅ Mayoría absoluta" if pp_sim_v >= ma_mad else f"❌ PP necesita {ma_mad - pp_sim_v} más"
@@ -1236,7 +1236,7 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
                        title="Variación respecto a 2023", text="Δ Cambio")
     fig_delta.add_hline(y=0, line_color="black", line_width=1)
     fig_delta.update_traces(textposition="outside")
-    st.plotly_chart(fig_delta, use_container_width=True)
+    st.plotly_chart(fig_delta, width='stretch')
 
     # ---- ANÁLISIS POR ZONAS
     st.subheader("🗺️ Análisis por Zonas Electorales")
@@ -1260,7 +1260,7 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
         ))
         fig_vz.update_layout(height=300, xaxis_title="% Voto",
                              title=f"Intención de Voto — {zona_sel}")
-        st.plotly_chart(fig_vz, use_container_width=True)
+        st.plotly_chart(fig_vz, width='stretch')
 
     with col_ze:
         rep_z = {p: v for p, v in dz["Reparto_estimado"].items() if v > 0}
@@ -1269,7 +1269,7 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
                             color=list(rep_z.keys()),
                             color_discrete_map=COLORES_MAD, hole=0.4,
                             title=f"Estimación escaños — {zona_sel}")
-            st.plotly_chart(fig_ez, use_container_width=True)
+            st.plotly_chart(fig_ez, width='stretch')
 
     # ---- COALICIONES
     st.subheader("🤝 Análisis de Coaliciones — Asamblea de Madrid")
@@ -1299,8 +1299,8 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
                       title=f"Escenarios de Coalición (MA: {ma_mad})")
     fig_coal.add_hline(y=ma_mad, line_dash="dash", line_color="red")
     fig_coal.update_traces(textposition="outside")
-    st.plotly_chart(fig_coal, use_container_width=True)
-    st.dataframe(df_coal, use_container_width=True)
+    st.plotly_chart(fig_coal, width='stretch')
+    st.dataframe(df_coal, width='stretch')
 
     # ---- RADAR
     st.subheader("📡 Variables Estructurales Madrid")
@@ -1316,7 +1316,7 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
             polar=dict(radialaxis=dict(range=[0, 100])),
             title="Perfil de Riesgo Electoral Madrid"
         )
-        st.plotly_chart(fig_rad, use_container_width=True)
+        st.plotly_chart(fig_rad, width='stretch')
 
     with col_r2:
         # Heatmap zonas
@@ -1330,7 +1330,7 @@ def render_tab_madrid(reparto_mad, votos_mad, datos_zonas_mad,
         fig_heat = px.imshow(df_heat, color_continuous_scale="RdYlBu_r",
                              title="% Intención de Voto por Zona",
                              text_auto=True)
-        st.plotly_chart(fig_heat, use_container_width=True)
+        st.plotly_chart(fig_heat, width='stretch')
 
     # ---- NOTA METODOLÓGICA
     with st.expander("📋 Nota Metodológica — Módulo Madrid"):
@@ -1446,7 +1446,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
         fig_act.update_traces(textposition="outside")
         fig_act.add_hline(y=ma_and, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_and})")
-        st.plotly_chart(fig_act, use_container_width=True)
+        st.plotly_chart(fig_act, width='stretch')
         pp_r = AND_COMPOSICION_ACTUAL["PP"]
         st.success(f"**Gobierno actual:** PP ({pp_r}) — mayoría absoluta  |  MA: {ma_and}")
 
@@ -1463,7 +1463,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
         fig_sim.update_traces(textposition="outside")
         fig_sim.add_hline(y=ma_and, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_and})")
-        st.plotly_chart(fig_sim, use_container_width=True)
+        st.plotly_chart(fig_sim, width='stretch')
         total_sim = sum(escanos_and.values())
         pp_sim_v = escanos_and.get("PP", 0)
         estado = "✅ Mayoría absoluta" if pp_sim_v >= ma_and else f"❌ PP necesita {ma_and - pp_sim_v} más"
@@ -1492,7 +1492,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
                        text="Δ Cambio")
     fig_delta.add_hline(y=0, line_color="black", line_width=1)
     fig_delta.update_traces(textposition="outside")
-    st.plotly_chart(fig_delta, use_container_width=True)
+    st.plotly_chart(fig_delta, width='stretch')
 
     # ---- DESGLOSE PROVINCIAL
     st.subheader("🗺️ Desglose Provincial Andalucía")
@@ -1514,7 +1514,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
             text=df_v["Voto (%)"].round(1), textposition="outside"
         ))
         fig_v.update_layout(height=300, xaxis_title="% Voto")
-        st.plotly_chart(fig_v, use_container_width=True)
+        st.plotly_chart(fig_v, width='stretch')
 
     with col_pe:
         st.markdown(f"**Reparto D'Hondt — {prov_sel} ({ESCANOS_AND[prov_sel]} diputados)**")
@@ -1523,7 +1523,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
             fig_e = px.pie(values=list(rep.values()), names=list(rep.keys()),
                            color=list(rep.keys()),
                            color_discrete_map=COLORES_AND, hole=0.4)
-            st.plotly_chart(fig_e, use_container_width=True)
+            st.plotly_chart(fig_e, width='stretch')
 
     # ---- COALICIONES
     st.subheader("🤝 Análisis de Coaliciones — Parlamento de Andalucía")
@@ -1552,8 +1552,8 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
                       title=f"Escenarios de Coalición (MA: {ma_and})")
     fig_coal.add_hline(y=ma_and, line_dash="dash", line_color="red")
     fig_coal.update_traces(textposition="outside")
-    st.plotly_chart(fig_coal, use_container_width=True)
-    st.dataframe(df_coal, use_container_width=True)
+    st.plotly_chart(fig_coal, width='stretch')
+    st.dataframe(df_coal, width='stretch')
 
     # ---- RADAR VARIABLES ESTRUCTURALES
     st.subheader("📡 Variables Estructurales Andalucía")
@@ -1571,7 +1571,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
             polar=dict(radialaxis=dict(range=[0, 100])),
             title="Perfil de Riesgo Electoral Andalucía"
         )
-        st.plotly_chart(fig_rad, use_container_width=True)
+        st.plotly_chart(fig_rad, width='stretch')
 
     with col_r2:
         # Heatmap votos por provincia
@@ -1585,7 +1585,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
         fig_heat = px.imshow(df_heat, color_continuous_scale="RdYlBu_r",
                              title="% Intención de Voto por Provincia",
                              text_auto=True)
-        st.plotly_chart(fig_heat, use_container_width=True)
+        st.plotly_chart(fig_heat, width='stretch')
 
     # ---- NOTA METODOLÓGICA
     with st.expander("📋 Nota Metodológica — Módulo Andalucía"):
@@ -1683,7 +1683,7 @@ with tab1:
                  color_discrete_map=PARTIDOS_COLORES, text="Escaños")
     fig.add_hline(y=176, line_dash="dash", line_color="red", annotation_text="Mayoría Absoluta (176)")
     fig.update_traces(textposition='outside')
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Panel de gobernabilidad
     st.subheader("🤝 Análisis de Gobernabilidad y Coaliciones")
@@ -1725,7 +1725,7 @@ with tab2:
             text=df_votos["Voto (%)"].round(1), textposition="outside"
         ))
         fig_v.update_layout(height=400, xaxis_title="% Voto")
-        st.plotly_chart(fig_v, use_container_width=True)
+        st.plotly_chart(fig_v, width='stretch')
 
     with col_e:
         st.markdown(f"**Escaños D'Hondt — {provincia_sel} ({ESCANOS[provincia_sel]} diputados)**")
@@ -1733,12 +1733,12 @@ with tab2:
         fig_e = px.pie(values=list(rep.values()), names=list(rep.keys()),
                        color=list(rep.keys()),
                        color_discrete_map=PARTIDOS_COLORES, hole=0.4)
-        st.plotly_chart(fig_e, use_container_width=True)
+        st.plotly_chart(fig_e, width='stretch')
 
     st.markdown("**Tabla de Reparto:**")
     df_rep = pd.DataFrame([{"Partido": p, "Escaños": v, "% Voto": round(dp["Votos"].get(p, 0), 2)}
                             for p, v in dp["Reparto"].items() if v > 0])
-    st.dataframe(df_rep.sort_values("Escaños", ascending=False), use_container_width=True)
+    st.dataframe(df_rep.sort_values("Escaños", ascending=False), width='stretch')
 
 # ========== TAB 3: RADAR ESTRATÉGICO ==========
 with tab3:
@@ -1751,7 +1751,7 @@ with tab3:
                                               line_color="#1f77b4", name="Escenario Actual"))
         fig_radar.update_layout(polar=dict(radialaxis=dict(range=[0, 100])),
                                 title="Variables de Escenario")
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar, width='stretch')
     with col_r2:
         # Radar de partidos por dimensión (perfil ideológico)
         partidos_radar = ["PP", "PSOE", "VOX", "SUMAR", "SALF"]
@@ -1773,7 +1773,7 @@ with tab3:
             ))
         fig_per.update_layout(polar=dict(radialaxis=dict(range=[0, 100])),
                               title="Perfil Electoral por Segmento")
-        st.plotly_chart(fig_per, use_container_width=True)
+        st.plotly_chart(fig_per, width='stretch')
 
     # Heatmap de volatilidad
     st.subheader("🌡️ Mapa de Calor — Intención de Voto por Partido")
@@ -1787,7 +1787,7 @@ with tab3:
     fig_heat = px.imshow(df_heat, color_continuous_scale="RdYlBu_r",
                          title="% Intención de Voto por Provincia (muestra 15 prov.)",
                          text_auto=True)
-    st.plotly_chart(fig_heat, use_container_width=True)
+    st.plotly_chart(fig_heat, width='stretch')
 
 # ========== TAB 4: METODOLOGÍA ==========
 with tab4:
@@ -1818,7 +1818,7 @@ with tab4:
         )
     ))
     fig_flow.update_layout(title="Flujo de Datos del Modelo")
-    st.plotly_chart(fig_flow, use_container_width=True)
+    st.plotly_chart(fig_flow, width='stretch')
 
     col_m1, col_m2 = st.columns(2)
     with col_m1:
@@ -1885,7 +1885,7 @@ with tab5:
         fig_trend.update_layout(height=500, hovermode="x unified",
                                 title="Evolución semanal de intención de voto (%)",
                                 yaxis_title="% Intención de Voto")
-        st.plotly_chart(fig_trend, use_container_width=True)
+        st.plotly_chart(fig_trend, width='stretch')
 
     # Métricas de volatilidad
     if not df_hist.empty:
@@ -1902,9 +1902,9 @@ with tab5:
         df_vol = pd.DataFrame(vol_data).sort_values("Volatilidad (σ)", ascending=False)
         fig_vol = px.bar(df_vol, x="Partido", y="Volatilidad (σ)", color="Partido",
                          color_discrete_map=PARTIDOS_COLORES, title="Volatilidad Semanal por Partido")
-        st.plotly_chart(fig_vol, use_container_width=True)
+        st.plotly_chart(fig_vol, width='stretch')
 
-    st.dataframe(df_hist.sort_values("Fecha", ascending=False), use_container_width=True)
+    st.dataframe(df_hist.sort_values("Fecha", ascending=False), width='stretch')
 
 # ========== TAB 6: CASTILLA Y LEÓN ==========
 with tab6:
@@ -1942,7 +1942,7 @@ with tab6:
         ma_cyl = (TOTAL_CYL // 2) + 1
         fig_act.add_hline(y=ma_cyl, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_cyl})")
-        st.plotly_chart(fig_act, use_container_width=True)
+        st.plotly_chart(fig_act, width='stretch')
         # Análisis de gobierno actual
         pp_actual = CYL_COMPOSICION_ACTUAL.get("PP", 0)
         vox_actual = CYL_COMPOSICION_ACTUAL.get("VOX", 0)
@@ -1961,7 +1961,7 @@ with tab6:
         fig_sim.update_traces(textposition='outside')
         fig_sim.add_hline(y=ma_cyl, line_dash="dash", line_color="red",
                           annotation_text=f"Mayoría Absoluta ({ma_cyl})")
-        st.plotly_chart(fig_sim, use_container_width=True)
+        st.plotly_chart(fig_sim, width='stretch')
         total_sim = sum(escanos_cyl.values())
         st.write(f"**Total simulado:** {total_sim} procuradores")
 
@@ -1981,7 +1981,7 @@ with tab6:
                        text="Δ Cambio")
     fig_delta.add_hline(y=0, line_color="black", line_width=1)
     fig_delta.update_traces(textposition='outside')
-    st.plotly_chart(fig_delta, use_container_width=True)
+    st.plotly_chart(fig_delta, width='stretch')
 
     # ---- DESGLOSE PROVINCIAL CYL
     st.subheader("🗺️ Desglose Provincial CyL")
@@ -2000,14 +2000,14 @@ with tab6:
             text=df_v_cyl["Voto (%)"].round(1), textposition="outside"
         ))
         fig_vc.update_layout(height=300, xaxis_title="% Voto")
-        st.plotly_chart(fig_vc, use_container_width=True)
+        st.plotly_chart(fig_vc, width='stretch')
     with col_pe:
         st.markdown(f"**Reparto D'Hondt — {prov_sel_cyl} ({ESCANOS_CYL[prov_sel_cyl]} proc.)**")
         rep_cyl = {p: v for p, v in dp_cyl["Reparto"].items() if v > 0}
         if rep_cyl:
             fig_ec = px.pie(values=list(rep_cyl.values()), names=list(rep_cyl.keys()),
                             color=list(rep_cyl.keys()), color_discrete_map=COLORES_CYL, hole=0.4)
-            st.plotly_chart(fig_ec, use_container_width=True)
+            st.plotly_chart(fig_ec, width='stretch')
 
     # ---- ANÁLISIS DE COALICIONES CYL
     st.subheader("🤝 Análisis de Coaliciones — Cortes de CyL")
@@ -2037,8 +2037,8 @@ with tab6:
                       title=f"Escenarios de Coalición (Mayoría Absoluta: {ma_cyl})")
     fig_coal.add_hline(y=ma_cyl, line_dash="dash", line_color="red")
     fig_coal.update_traces(textposition='outside')
-    st.plotly_chart(fig_coal, use_container_width=True)
-    st.dataframe(df_coal, use_container_width=True)
+    st.plotly_chart(fig_coal, width='stretch')
+    st.dataframe(df_coal, width='stretch')
 
     # ---- RADAR DE VARIABLES ESTRUCTURALES CYL
     st.subheader("📡 Variables Estructurales CyL")
@@ -2049,7 +2049,7 @@ with tab6:
                                             line_color="#8c564b", name="CyL"))
     fig_rad_cyl.update_layout(polar=dict(radialaxis=dict(range=[0, 100])),
                                title="Perfil de Riesgo Electoral CyL")
-    st.plotly_chart(fig_rad_cyl, use_container_width=True)
+    st.plotly_chart(fig_rad_cyl, width='stretch')
 
     # ---- HISTÓRICO CYL
     st.subheader("📈 Histórico de Intención de Voto CyL")
@@ -2067,8 +2067,8 @@ with tab6:
                 ))
         fig_hcyl.update_layout(height=400, hovermode="x unified",
                                 title="Evolución Semanal — Intención de Voto CyL")
-        st.plotly_chart(fig_hcyl, use_container_width=True)
-        st.dataframe(df_hist_cyl.sort_values("Fecha", ascending=False), use_container_width=True)
+        st.plotly_chart(fig_hcyl, width='stretch')
+        st.dataframe(df_hist_cyl.sort_values("Fecha", ascending=False), width='stretch')
 
     # ---- NOTA METODOLÓGICA CYL
     with st.expander("📋 Nota Metodológica — Módulo CyL"):
