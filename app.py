@@ -886,7 +886,7 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
         """)
 
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🏛️ Hemiciclo Nacional",
     "🗺️ Desglose Provincial",
     "📡 Radar Estratégico",
