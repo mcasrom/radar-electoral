@@ -427,18 +427,6 @@ def calcular():
 escanos_totales, datos_prov = calcular()
 escanos_cyl, datos_prov_cyl = calcular_cyl()
 
-# Cálculo Andalucía
-escanos_and, datos_prov_and = calcular_and(
-    factor_desempleo_and, factor_vivienda_and,
-    factor_agua, factor_rural_urbano, umbral_and
-)
-votos_and_avg = {p: sum(d["Votos"].get(p,0) for d in datos_prov_and)/len(datos_prov_and)
-                 for p in PARTIDOS_AND}
-polarizacion_and = calcular_indice_polarizacion(votos_and_avg)
-nep_and          = calcular_indice_fragmentacion(escanos_and)
-lsq_and          = calcular_sesgo_sistema(votos_and_avg, escanos_and)
-ma_and           = (TOTAL_AND // 2) + 1
-
 # Métricas nacionales
 votos_nacionales_agregados = {}
 for dp in datos_prov:
@@ -907,6 +895,20 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🏰 Castilla y León",
     "🌞 Andalucía"
 ])
+# ===============================
+# EJECUCIÓN — CÁLCULO ANDALUCÍA
+# ===============================
+escanos_and, datos_prov_and = calcular_and(
+    factor_desempleo_and, factor_vivienda_and,
+    factor_agua, factor_rural_urbano, umbral_and
+)
+votos_and_avg = {p: sum(d["Votos"].get(p,0) for d in datos_prov_and)/len(datos_prov_and)
+                 for p in PARTIDOS_AND}
+polarizacion_and = calcular_indice_polarizacion(votos_and_avg)
+nep_and          = calcular_indice_fragmentacion(escanos_and)
+lsq_and          = calcular_sesgo_sistema(votos_and_avg, escanos_and)
+ma_and           = (TOTAL_AND // 2) + 1
+
 
 # ========== TAB 1: HEMICICLO NACIONAL ==========
 with tab1:
