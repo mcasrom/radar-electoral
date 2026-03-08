@@ -2259,7 +2259,7 @@ def render_tab_energia():
                       title="Precio €/litro — España vs Media UE (con impuestos)")
     fig_comp.update_traces(texttemplate="%{text:.3f}", textposition="outside")
     fig_comp.update_layout(height=400)
-    st.plotly_chart(fig_comp, width='stretch')
+    st.plotly_chart(fig_comp, width='stretch', key='ene_comp')
 
     # ---- EVOLUCIÓN HISTÓRICA
     st.subheader("📈 Evolución Histórica de Precios")
@@ -2305,7 +2305,7 @@ def render_tab_energia():
 
     fig_hist.update_layout(height=450, hovermode="x unified",
                            title="Evolución mensual de precios energéticos")
-    st.plotly_chart(fig_hist, width='stretch')
+    st.plotly_chart(fig_hist, width='stretch', key='ene_hist')
 
     # ---- IMPACTO ELECTORAL ESTIMADO
     st.subheader("🗳️ Impacto Electoral Estimado")
@@ -2355,7 +2355,7 @@ def render_tab_energia():
         }
     ))
     fig_gauge.update_layout(height=300)
-    st.plotly_chart(fig_gauge, width='stretch')
+    st.plotly_chart(fig_gauge, width='stretch', key='ene_gauge')
 
     # ---- NOTA METODOLÓGICA
     with st.expander("📋 Fuentes y Metodología — Módulo Energía"):
