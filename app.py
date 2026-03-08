@@ -1612,17 +1612,6 @@ def render_tab_andalucia(escanos_and, datos_prov_and,
 - Cs en liquidación → votos redistribuidos en OTROS
 - Alta volatilidad en provincias pequeñas (Huelva, Jaén) por tamaño muestral
         """)
-
-
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "🏛️ Hemiciclo Nacional",
-    "🗺️ Desglose Provincial",
-    "📡 Radar Estratégico",
-    "📋 Metodología y Fuentes",
-    "📈 Histórico Semanal",
-    "🏰 Castilla y León",
-    "🌞 Andalucía"
-])
 # ===============================
 # EJECUCIÓN — CÁLCULO ANDALUCÍA
 # ===============================
