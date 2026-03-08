@@ -57,13 +57,13 @@ COLORES_CYL = {
 # Intención de voto base en CyL (estimación estructural, ajustada al perfil demográfico)
 # CyL: envejecida, rural, histórico conservador, alta abstención en interior
 BASE_CYL = {
-    "PP": 36.0,    # hegemonía histórica CyL
-    "PSOE": 24.0,  # voto urbano + rural tradicional
-    "VOX": 11.0,   # menor que media nacional por perfil rural-tradicional
-    "SUMAR": 6.5,  # débil implantación en CyL
-    "Por Ávila": 1.5, # partido local
-    "UPL": 2.0,    # León y alrededores
-    "OTROS": 19.0  # abstención técnica, indecisos, nulos
+    "PP": 32.0,    # consenso encuestas mar2026: 29-35%
+    "PSOE": 28.0,  # recupera vs 2022 — encuestas 27-32%
+    "VOX": 19.0,   # subida fuerte — SocioMétrica+Gesop ~20%
+    "SUMAR": 3.5,  # debacle nacional se refleja en CyL
+    "Por Ávila": 1.5,
+    "UPL": 4.5,    # refuerzo leonesismo — encuestas 4-5%
+    "OTROS": 11.0  # abstención + indecisos
 }
 
 # Provincias de CyL y escaños en Cortes de CyL (elecciones autonómicas)
