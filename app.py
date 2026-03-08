@@ -1871,9 +1871,14 @@ with tab5:
                     mode="lines+markers", name=f"{p} (σ={vol})",
                     line=dict(color=PARTIDOS_COLORES.get(p, "#999"), width=3)
                 ))
+        # Zoom en rango real de variación — evita línea plana
+        all_vals = df_nacional["Votos"].dropna()
+        y_min = max(0, all_vals.min() - 1.5)
+        y_max = all_vals.max() + 1.5
         fig_trend.update_layout(height=500, hovermode="x unified",
                                 title="Evolución semanal de intención de voto (%)",
-                                yaxis_title="% Intención de Voto")
+                                yaxis_title="% Intención de Voto",
+                                yaxis=dict(range=[y_min, y_max]))
         st.plotly_chart(fig_trend, width='stretch')
 
     # Métricas de volatilidad
