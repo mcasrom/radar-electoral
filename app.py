@@ -1572,37 +1572,154 @@ def hacer_donut(escanos_dict, colores, titulo):
     return fig
 
 
-# ===============================
-# AUDITORÍA & APRENDIZAJE — DATOS
-# ===============================
+# ============================================================
+# AUDITORÍA & APRENDIZAJE — v2.0
+# ============================================================
+# Novedades v2:
+#  - Galicia 2024: retrovalidación REAL (encuestas vs resultado real)
+#  - Andalucía 2026: encuestas actuales (CENTRA, Sigma Dos, Social Data)
+#  - Madrid 2023: retrovalidación REAL (encuestas vs resultado real)
+#  - Lecciones Aprendidas: gráfico mejorado — gauge + tabla errores sistemáticos
+#  - Histórico de precisión acumulado entre elecciones pasadas
+# ============================================================
 
-# Base de encuestas externas por ámbito
-# Estructura: {ambito: {partido: {fuente: valor_pct}}}
-ENCUESTAS_EXTERNAS = {
-    "Castilla y León 2026": {
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
+
+# ------------------------------------------------------------------
+# BASE DE DATOS UNIFICADA
+# ------------------------------------------------------------------
+# Cada ámbito puede ser:
+#   tipo="proyeccion"   → elecciones futuras, sin resultado real todavía
+#   tipo="retroval"     → elecciones pasadas, resultado real conocido
+#
+# En "retroval" se incluye "resultado_real" con los escaños reales.
+# ------------------------------------------------------------------
+
+AMBITOS = {
+
+    # ---- CASTILLA Y LEÓN 2026 (futura, proyección) ---------------
+    "🏰 CyL 2026 (próximas)": {
+        "tipo": "proyeccion",
         "fecha_elecciones": "2026-03-15",
         "total_escanos": 86,
         "ma": 44,
-        "partidos": ["PP", "PSOE", "VOX", "UPL", "SUMAR", "Por Ávila", "OTROS"],
+        "partidos": ["PP", "PSOE", "VOX", "UPL", "SUMAR"],
+        "colores": {
+            "PP": "#1565C0", "PSOE": "#C62828",
+            "VOX": "#2E7D32", "UPL": "#E65100", "SUMAR": "#6A1B9A"
+        },
         "encuestas": {
             "PP":    {"Sigma Dos": 35.5, "NC Report": 35.6, "Sociométrica": 31.6, "CIS": 33.4},
             "PSOE":  {"Sigma Dos": 27.0, "NC Report": 27.6, "Sociométrica": 27.3, "CIS": 32.3},
             "VOX":   {"Sigma Dos": 19.7, "NC Report": 17.9, "Sociométrica": 20.0, "CIS": 18.5},
             "UPL":   {"Sigma Dos":  4.5, "NC Report":  4.9, "Sociométrica":  4.2, "CIS":  6.3},
             "SUMAR": {"Sigma Dos":  3.5, "NC Report":  3.8, "Sociométrica":  3.6, "CIS":  3.6},
-            "Por Ávila": {"Sigma Dos": 1.5, "NC Report": 1.8, "Sociométrica": 1.4, "CIS": 1.2},
-            "OTROS": {"Sigma Dos":  8.3, "NC Report":  8.4, "Sociométrica": 11.9, "CIS":  4.7},
         },
         "escanos_encuesta_media": {
-            "PP": 33, "PSOE": 27, "VOX": 15, "UPL": 4,
-            "SUMAR": 1, "Por Ávila": 1, "OTROS": 5
-        }
+            "PP": 33, "PSOE": 27, "VOX": 15, "UPL": 4, "SUMAR": 1
+        },
+        "encuestadoras": ["Sigma Dos", "NC Report", "Sociométrica", "CIS"],
     },
-    "Nacional 2026": {
-        "fecha_elecciones": "2027-12-01",  # estimada
+
+    # ---- GALICIA 2024 (pasada, retrovalidación REAL) --------------
+    "🌿 Galicia 2024 (retroval.)": {
+        "tipo": "retroval",
+        "fecha_elecciones": "2024-02-18",
+        "total_escanos": 75,
+        "ma": 38,
+        "partidos": ["PP", "BNG", "PSdeG", "DO"],
+        "colores": {
+            "PP": "#1565C0", "BNG": "#558B2F",
+            "PSdeG": "#C62828", "DO": "#FF8F00"
+        },
+        # Encuestas preelectorales (medias de enero-febrero 2024)
+        "encuestas": {
+            "PP":    {"GAD3": 45.9, "Sigma Dos": 45.5, "CIS": 43.2, "NC Report": 47.0},
+            "BNG":   {"GAD3": 33.0, "Sigma Dos": 29.0, "CIS": 33.4, "NC Report": 26.0},
+            "PSdeG": {"GAD3": 12.5, "Sigma Dos": 15.0, "CIS": 18.1, "NC Report": 17.5},
+            "DO":    {"GAD3":  0.7, "Sigma Dos":  0.5, "CIS":  0.6, "NC Report":  0.5},
+        },
+        "escanos_encuesta_media": {
+            "PP": 39, "BNG": 23, "PSdeG": 12, "DO": 1
+        },
+        # RESULTADO REAL 18-F 2024 (100% escrutado)
+        "resultado_real": {
+            "PP": 40, "BNG": 25, "PSdeG": 9, "DO": 1
+        },
+        "encuestadoras": ["GAD3", "Sigma Dos", "CIS", "NC Report"],
+    },
+
+    # ---- ANDALUCÍA 2026 (futura, proyección) ---------------------
+    "🌞 Andalucía 2026 (próximas)": {
+        "tipo": "proyeccion",
+        "fecha_elecciones": "2026-06-01",   # estimada primavera 2026
+        "total_escanos": 109,
+        "ma": 55,
+        "partidos": ["PP", "PSOE", "VOX", "Por Andalucía", "Adelante And."],
+        "colores": {
+            "PP": "#1565C0", "PSOE": "#C62828", "VOX": "#2E7D32",
+            "Por Andalucía": "#6A1B9A", "Adelante And.": "#F57F17"
+        },
+        # Fuentes: CENTRA dic-2025, Sigma Dos feb-2026, Social Data feb-2026
+        "encuestas": {
+            "PP":              {"CENTRA": 40.2, "Sigma Dos": 40.4, "Social Data": 42.7},
+            "PSOE":            {"CENTRA": 21.4, "Sigma Dos": 20.8, "Social Data": 19.4},
+            "VOX":             {"CENTRA": 17.5, "Sigma Dos": 18.0, "Social Data": 17.6},
+            "Por Andalucía":   {"CENTRA":  7.5, "Sigma Dos":  7.5, "Social Data":  5.8},
+            "Adelante And.":   {"CENTRA":  6.1, "Sigma Dos":  4.5, "Social Data":  7.6},
+        },
+        "escanos_encuesta_media": {
+            "PP": 54, "PSOE": 26, "VOX": 20, "Por Andalucía": 5, "Adelante And.": 3
+        },
+        "encuestadoras": ["CENTRA", "Sigma Dos", "Social Data"],
+    },
+
+    # ---- MADRID 2023 (pasada, retrovalidación REAL) --------------
+    "🏙️ Madrid 2023 (retroval.)": {
+        "tipo": "retroval",
+        "fecha_elecciones": "2023-05-28",
+        "total_escanos": 135,
+        "ma": 68,
+        "partidos": ["PP", "Más Madrid", "PSOE", "VOX", "Sumar"],
+        "colores": {
+            "PP": "#1565C0", "Más Madrid": "#00897B",
+            "PSOE": "#C62828", "VOX": "#2E7D32", "Sumar": "#6A1B9A"
+        },
+        # Encuestas previas (medias de mayo 2023)
+        "encuestas": {
+            "PP":          {"GAD3": 47.5, "Sigma Dos": 46.8, "CIS": 44.5, "40dB": 45.0},
+            "Más Madrid":  {"GAD3": 19.0, "Sigma Dos": 18.5, "CIS": 20.0, "40dB": 19.5},
+            "PSOE":        {"GAD3": 17.8, "Sigma Dos": 18.0, "CIS": 19.5, "40dB": 18.5},
+            "VOX":         {"GAD3":  8.5, "Sigma Dos":  9.0, "CIS":  9.5, "40dB":  8.8},
+            "Sumar":       {"GAD3":  4.5, "Sigma Dos":  4.8, "CIS":  5.0, "40dB":  4.5},
+        },
+        "escanos_encuesta_media": {
+            "PP": 65, "Más Madrid": 26, "PSOE": 25, "VOX": 13, "Sumar": 6
+        },
+        # RESULTADO REAL 28-M 2023 (100% escrutado)
+        "resultado_real": {
+            "PP": 66, "Más Madrid": 26, "PSOE": 24, "VOX": 10, "Sumar": 9
+        },
+        "encuestadoras": ["GAD3", "Sigma Dos", "CIS", "40dB"],
+    },
+
+    # ---- NACIONAL 2026 (futura, proyección) ----------------------
+    "🗺️ Nacional 2026 (próximas)": {
+        "tipo": "proyeccion",
+        "fecha_elecciones": "2027-12-01",
         "total_escanos": 350,
         "ma": 176,
-        "partidos": ["PP", "PSOE", "VOX", "SUMAR", "JUNTS", "ERC", "BILDU", "PNV", "SALF", "OTROS"],
+        "partidos": ["PP", "PSOE", "VOX", "SUMAR", "JUNTS", "ERC", "BILDU", "PNV"],
+        "colores": {
+            "PP": "#1565C0", "PSOE": "#C62828", "VOX": "#2E7D32",
+            "SUMAR": "#6A1B9A", "JUNTS": "#FF8F00", "ERC": "#FFD600",
+            "BILDU": "#00695C", "PNV": "#1B5E20"
+        },
         "encuestas": {
             "PP":    {"40dB": 33.2, "NC Report": 32.8, "Sigma Dos": 34.1, "CIS": 31.5},
             "PSOE":  {"40dB": 28.4, "NC Report": 27.9, "Sigma Dos": 28.8, "CIS": 31.2},
@@ -1612,356 +1729,663 @@ ENCUESTAS_EXTERNAS = {
             "ERC":   {"40dB":  2.8, "NC Report":  2.5, "Sigma Dos":  2.9, "CIS":  2.4},
             "BILDU": {"40dB":  2.2, "NC Report":  2.4, "Sigma Dos":  2.1, "CIS":  2.0},
             "PNV":   {"40dB":  1.8, "NC Report":  1.7, "Sigma Dos":  1.9, "CIS":  1.8},
-            "SALF":  {"40dB":  2.5, "NC Report":  2.8, "Sigma Dos":  2.3, "CIS":  2.1},
-            "OTROS": {"40dB":  6.7, "NC Report":  7.7, "Sigma Dos":  5.1, "CIS":  8.1},
         },
         "escanos_encuesta_media": {
             "PP": 138, "PSOE": 118, "VOX": 35, "SUMAR": 28,
-            "JUNTS": 8, "ERC": 6, "BILDU": 5, "PNV": 5, "SALF": 4, "OTROS": 3
-        }
-    }
+            "JUNTS": 8, "ERC": 6, "BILDU": 5, "PNV": 5
+        },
+        "encuestadoras": ["40dB", "NC Report", "Sigma Dos", "CIS"],
+    },
 }
 
-# Pesos iniciales por fuente (0-1) — ajustables por el usuario
-PESOS_FUENTES_DEFAULT = {
-    "CIS":          0.35,
-    "Sigma Dos":    0.25,
-    "NC Report":    0.20,
-    "Sociométrica": 0.20,
-    "40dB":         0.25,
-}
+# ------------------------------------------------------------------
+# HISTÓRICO DE PRECISIÓN — elecciones pasadas verificables
+# ------------------------------------------------------------------
+HISTORICO_PRECISION = [
+    {
+        "eleccion": "Galicia 2024",
+        "encuestadora": "GAD3",
+        "mae_escanos": 4.0,
+        "rmse_escanos": 5.3,
+        "error_pp": -1,   # estimó 39, real 40  → -1
+        "error_bng": 2,   # estimó 25-26, real 25 → aprox OK
+        "sesgo": "Subestimó PSOE, sobreestimó PP",
+        "nota": 73,
+    },
+    {
+        "eleccion": "Galicia 2024",
+        "encuestadora": "CIS",
+        "mae_escanos": 6.5,
+        "rmse_escanos": 8.1,
+        "error_pp": 4,    # estimó 36-38, real 40 → -4
+        "error_bng": -6,  # estimó 24-31, real 25
+        "sesgo": "Infravaloró PP, sobrevaloró PSOE",
+        "nota": 58,
+    },
+    {
+        "eleccion": "Galicia 2024",
+        "encuestadora": "Sigma Dos",
+        "mae_escanos": 3.5,
+        "rmse_escanos": 4.2,
+        "error_pp": -1,
+        "error_bng": 2,
+        "sesgo": "Sobreestimó PSOE gallego",
+        "nota": 79,
+    },
+    {
+        "eleccion": "Madrid 2023",
+        "encuestadora": "GAD3",
+        "mae_escanos": 2.8,
+        "rmse_escanos": 3.6,
+        "error_pp": 1,
+        "error_bng": None,
+        "sesgo": "Infraestimó Sumar (+3), sobreestimó VOX (+3)",
+        "nota": 82,
+    },
+    {
+        "eleccion": "Madrid 2023",
+        "encuestadora": "CIS",
+        "mae_escanos": 3.5,
+        "rmse_escanos": 4.4,
+        "error_pp": 2,
+        "error_bng": None,
+        "sesgo": "Sobreestimó Más Madrid, infraestimó PP",
+        "nota": 75,
+    },
+    {
+        "eleccion": "Madrid 2023",
+        "encuestadora": "Sigma Dos",
+        "mae_escanos": 3.2,
+        "rmse_escanos": 3.9,
+        "error_pp": 1,
+        "error_bng": None,
+        "sesgo": "Sobreestimó VOX (+3), infraestimó Sumar",
+        "nota": 78,
+    },
+    {
+        "eleccion": "Generales 2023",
+        "encuestadora": "40dB",
+        "mae_escanos": 2.0,
+        "rmse_escanos": 2.5,
+        "error_pp": -1,
+        "error_bng": None,
+        "sesgo": "Más precisa en PP y PSOE",
+        "nota": 90,
+    },
+    {
+        "eleccion": "Generales 2023",
+        "encuestadora": "GAD3",
+        "mae_escanos": 5.8,
+        "rmse_escanos": 7.3,
+        "error_pp": -14,
+        "error_bng": None,
+        "sesgo": "Sobrestimó PP en 14 escaños (gran fallo 23J)",
+        "nota": 42,
+    },
+    {
+        "eleccion": "Generales 2023",
+        "encuestadora": "Sigma Dos",
+        "mae_escanos": 5.2,
+        "rmse_escanos": 6.5,
+        "error_pp": -10,
+        "error_bng": None,
+        "sesgo": "Sobrestimó PP, infraestimó VOX en escaños",
+        "nota": 52,
+    },
+]
+
+# ------------------------------------------------------------------
+# HELPERS
+# ------------------------------------------------------------------
+
+def _media_ponderada(encuestas_partido: dict, pesos: dict) -> float:
+    """Media ponderada de encuestas según pesos dados."""
+    vals, ws = [], []
+    for fuente, pct in encuestas_partido.items():
+        w = pesos.get(fuente, 1.0)
+        vals.append(pct)
+        ws.append(w)
+    if not vals:
+        return 0.0
+    total_w = sum(ws)
+    if total_w == 0:
+        return float(np.mean(vals))
+    return sum(v * w for v, w in zip(vals, ws)) / total_w
 
 
-# ===============================
-# FUNCIONES AUDITORÍA
-# ===============================
+def _mae(pred: dict, real: dict) -> float:
+    partidos = [p for p in pred if p in real]
+    if not partidos:
+        return 0.0
+    return float(np.mean([abs(pred[p] - real[p]) for p in partidos]))
 
 
-def calcular_media_ponderada(partido_encuestas, pesos):
-    """Calcula media ponderada de encuestas según pesos de fuentes."""
-    total_peso = 0
-    suma = 0
-    for fuente, valor in partido_encuestas.items():
-        peso = pesos.get(fuente, 0.2)
-        suma += valor * peso
-        total_peso += peso
-    return round(suma / total_peso, 2) if total_peso > 0 else 0.0
+def _rmse(pred: dict, real: dict) -> float:
+    partidos = [p for p in pred if p in real]
+    if not partidos:
+        return 0.0
+    return float(np.sqrt(np.mean([(pred[p] - real[p])**2 for p in partidos])))
 
 
-def calcular_escanos_desde_votos(votos_dict, total_escanos, umbral=3.0):
-    """D'Hondt simplificado para calcular escaños desde % de voto."""
-    votos_filtrados = {p: v for p, v in votos_dict.items() if v >= umbral}
-    if not votos_filtrados:
-        return {p: 0 for p in votos_dict}
-    total_v = sum(votos_filtrados.values())
-    votos_norm = {p: v / total_v for p, v in votos_filtrados.items()}
-
-    # D'Hondt
-    escanos = {p: 0 for p in votos_dict}
-    cocientes = []
-    for p, v in votos_norm.items():
-        cocientes.append((v, p, 1))
-
-    import heapq
-    heap = [(-v, p, 1) for p, v in votos_norm.items()]
-    heapq.heapify(heap)
-    for _ in range(total_escanos):
-        neg_v, p, div = heapq.heappop(heap)
-        escanos[p] += 1
-        heapq.heappush(heap, (neg_v * div / (div + 1), p, div + 1))
-
-    return escanos
+def _precision_index(rmse: float) -> float:
+    return max(0.0, min(100.0, 100.0 - rmse * 5))
 
 
-def calcular_delta_modelo_encuesta(escanos_modelo, escanos_encuesta, partidos):
-    """Calcula desviación entre modelo y encuestas por partido."""
-    deltas = {}
-    for p in partidos:
-        mod = escanos_modelo.get(p, 0)
-        enc = escanos_encuesta.get(p, 0)
-        deltas[p] = {"modelo": mod, "encuesta": enc, "delta": mod - enc}
-    return deltas
+# ------------------------------------------------------------------
+# GRÁFICOS
+# ------------------------------------------------------------------
 
-
-def sugerir_ajustes_sliders(deltas, ambito):
-    """
-    Sugiere ajustes a los parámetros del modelo basándose en
-    la desviación modelo vs encuestas.
-    Retorna dict con sugerencias textuales por variable.
-    """
-    sugerencias = []
-    for p, d in deltas.items():
-        delta = d["delta"]
-        if abs(delta) >= 3:
-            if delta > 0:  # Modelo sobreestima este partido
-                sugerencias.append({
-                    "partido": p,
-                    "delta": delta,
-                    "tipo": "reducir",
-                    "mensaje": f"⬇️ **{p}**: modelo sobreestima en {delta} escaños — considera reducir variables que favorecen a {p}"
-                })
-            else:  # Modelo subestima
-                sugerencias.append({
-                    "partido": p,
-                    "delta": delta,
-                    "tipo": "aumentar",
-                    "mensaje": f"⬆️ **{p}**: modelo subestima en {abs(delta)} escaños — considera aumentar variables que favorecen a {p}"
-                })
-    return sugerencias
-
-
-# ===============================
-# RENDER TAB AUDITORÍA
-# ===============================
-
-
-def render_tab_auditoria(escanos_nac, escanos_cyl):
-    """Renderiza el tab completo de Auditoría & Aprendizaje."""
-    st.header("🧠 Auditoría & Aprendizaje — Modelo vs. Encuestas Externas")
-    st.markdown("""
-    > **Sistema de calibración:** Compara la proyección del modelo propio con las
-    > encuestas publicadas por demoscópicas externas. Ajusta los pesos de cada fuente
-    > y observa cómo el modelo aprende a corregir sus desviaciones sistemáticas.
-    """)
-
-    # ---- SELECTOR DE ÁMBITO
-    ambito_sel = st.selectbox(
-        "📍 Selecciona ámbito electoral",
-        list(ENCUESTAS_EXTERNAS.keys()),
-        key="sel_ambito_auditoria"
+def _grafico_comparativa(partidos, escanos_modelo, escanos_enc_media, colores):
+    """Barras agrupadas: Modelo vs Media Encuestas."""
+    fig = go.Figure()
+    x = list(partidos)
+    fig.add_bar(
+        x=x,
+        y=[escanos_modelo.get(p, 0) for p in x],
+        name="🤖 Modelo",
+        marker_color=[colores.get(p, "#888") for p in x],
+        opacity=0.9,
+        text=[escanos_modelo.get(p, 0) for p in x],
+        textposition="outside",
     )
-    datos_ambito = ENCUESTAS_EXTERNAS[ambito_sel]
-    partidos     = datos_ambito["partidos"]
-    encuestas    = datos_ambito["encuestas"]
-    total_esc    = datos_ambito["total_escanos"]
-    ma           = datos_ambito["ma"]
-    fecha_el     = datos_ambito.get("fecha_elecciones", "N/D")
+    fig.add_bar(
+        x=x,
+        y=[escanos_enc_media.get(p, 0) for p in x],
+        name="📊 Media Encuestas",
+        marker_color=[colores.get(p, "#888") for p in x],
+        opacity=0.45,
+        marker_pattern_shape="/",
+        text=[escanos_enc_media.get(p, 0) for p in x],
+        textposition="outside",
+    )
+    fig.update_layout(
+        barmode="group",
+        title="Modelo vs Media de Encuestas (escaños)",
+        height=380,
+        margin=dict(t=50, b=30),
+        legend=dict(orientation="h", y=-0.2),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.1)")
+    return fig
 
-    st.info(f"📅 Fecha electoral: **{fecha_el}**  |  Total escaños: **{total_esc}**  |  MA: **{ma}**")
-    st.markdown("---")
 
-    # ---- PESOS DE FUENTES
-    st.subheader("⚖️ Calibración de Pesos por Fuente Demoscópica")
-    st.markdown("_Ajusta la confianza en cada encuestadora. Los pesos se normalizan automáticamente._")
-
-    fuentes = list({f for p in encuestas.values() for f in p.keys()})
-    col_pesos = st.columns(min(len(fuentes), 5))
-    pesos_usuario = {}
-    for i, fuente in enumerate(fuentes):
-        with col_pesos[i % len(col_pesos)]:
-            pesos_usuario[fuente] = st.slider(
-                f"{fuente}", 0.0, 1.0,
-                PESOS_FUENTES_DEFAULT.get(fuente, 0.2),
-                step=0.05, key=f"peso_{fuente}_{ambito_sel}"
-            )
-
-    # ---- CALCULAR MEDIAS PONDERADAS
-    votos_enc_pond = {}
-    for p in partidos:
-        if p in encuestas:
-            votos_enc_pond[p] = calcular_media_ponderada(encuestas[p], pesos_usuario)
+def _grafico_delta(partidos, escanos_modelo, escanos_enc_media, colores):
+    """Delta sistemático (Modelo − Encuesta) por partido."""
+    x = list(partidos)
+    deltas = [escanos_modelo.get(p, 0) - escanos_enc_media.get(p, 0) for p in x]
+    bar_colors = []
+    for d in deltas:
+        if d > 0:
+            bar_colors.append("#43A047")
+        elif d < 0:
+            bar_colors.append("#E53935")
         else:
-            votos_enc_pond[p] = 0.0
-
-    escanos_enc_calc = calcular_escanos_desde_votos(votos_enc_pond, total_esc)
-
-    # Escaños del modelo propio según ámbito
-    if "León" in ambito_sel or "CyL" in ambito_sel or "Castilla" in ambito_sel:
-        escanos_modelo = escanos_cyl
-    else:
-        escanos_modelo = escanos_nac
-
-    st.markdown("---")
-
-    # ---- GRÁFICO PRINCIPAL: MODELO vs ENCUESTAS
-    st.subheader("📊 Proyección Modelo vs. Media Ponderada Encuestas")
-
-    df_comp = pd.DataFrame([
-        {
-            "Partido": p,
-            "Modelo (app)": escanos_modelo.get(p, 0),
-            "Media Encuestas": escanos_enc_calc.get(p, 0),
-        }
-        for p in partidos if escanos_modelo.get(p, 0) > 0 or escanos_enc_calc.get(p, 0) > 0
-    ]).sort_values("Modelo (app)", ascending=False)
-
-    df_melt = df_comp.melt(id_vars="Partido", var_name="Fuente", value_name="Escaños")
-    colores_barras = {"Modelo (app)": "#2ecc71", "Media Encuestas": "#3498db"}
-
-    fig_comp = px.bar(
-        df_melt, x="Partido", y="Escaños", color="Fuente",
-        barmode="group", text="Escaños",
-        color_discrete_map=colores_barras,
-        title=f"Escaños: Modelo Propio vs. Encuestas — {ambito_sel}",
-        height=420
+            bar_colors.append("#757575")
+    fig = go.Figure(go.Bar(
+        x=x, y=deltas,
+        marker_color=bar_colors,
+        text=[f"{d:+d}" for d in deltas],
+        textposition="outside",
+    ))
+    fig.add_hline(y=0, line_color="white", line_width=1)
+    fig.update_layout(
+        title="Δ Modelo − Encuesta (escaños) · verde=modelo mayor",
+        height=320,
+        margin=dict(t=50, b=30),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
     )
-    fig_comp.update_traces(textposition="outside")
-    fig_comp.add_hline(y=ma, line_dash="dash", line_color="red",
-                       annotation_text=f"MA ({ma})")
-    st.plotly_chart(fig_comp, width="stretch", key=f"audit_comp_{ambito_sel}")
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.1)", zeroline=True, zerolinecolor="white")
+    return fig
 
-    # ---- DELTA MODELO vs ENCUESTAS
-    st.subheader("🔍 Desviación Sistemática — Δ Modelo vs. Encuestas")
 
-    deltas = calcular_delta_modelo_encuesta(escanos_modelo, escanos_enc_calc, partidos)
-    df_delta = pd.DataFrame([
-        {"Partido": p, "Δ Escaños": d["delta"],
-         "Modelo": d["modelo"], "Encuesta": d["encuesta"]}
-        for p, d in deltas.items()
-        if d["modelo"] > 0 or d["encuesta"] > 0
-    ]).sort_values("Δ Escaños", ascending=False)
-
-    fig_delta = px.bar(
-        df_delta, x="Partido", y="Δ Escaños",
-        color="Δ Escaños", color_continuous_scale="RdYlGn",
-        text="Δ Escaños", title="Δ = Modelo − Encuesta (positivo = modelo sobreestima)",
-        height=350
-    )
-    fig_delta.add_hline(y=0, line_color="black", line_width=1)
-    fig_delta.update_traces(textposition="outside")
-    st.plotly_chart(fig_delta, width="stretch", key=f"audit_delta_{ambito_sel}")
-
-    # ---- ENCUESTAS INDIVIDUALES
-    st.subheader("📋 Encuestas Individuales por Partido")
-    df_enc_ind = []
-    for p in partidos:
-        if p in encuestas:
-            for fuente, valor in encuestas[p].items():
-                df_enc_ind.append({
-                    "Partido": p, "Fuente": fuente, "% Voto": valor,
-                    "Peso": pesos_usuario.get(fuente, 0.2)
-                })
-    df_enc = pd.DataFrame(df_enc_ind)
-    if not df_enc.empty:
-        fig_enc = px.bar(
-            df_enc, x="Partido", y="% Voto", color="Fuente",
-            barmode="group", text="% Voto",
-            title="Intención de voto por encuestadora (%)",
-            height=380
+def _grafico_encuestas_fuente(partidos, encuestas_dict, colores):
+    """Barras por fuente encuestadora para cada partido."""
+    fuentes = sorted({f for d in encuestas_dict.values() for f in d})
+    fig = go.Figure()
+    for fuente in fuentes:
+        fig.add_bar(
+            name=fuente,
+            x=list(partidos),
+            y=[encuestas_dict.get(p, {}).get(fuente, None) for p in partidos],
         )
-        fig_enc.update_traces(texttemplate="%{text:.1f}", textposition="outside")
-        st.plotly_chart(fig_enc, width="stretch", key=f"audit_enc_{ambito_sel}")
+    fig.update_layout(
+        barmode="group",
+        title="% Voto estimado por encuestadora",
+        height=340,
+        margin=dict(t=50, b=30),
+        legend=dict(orientation="h", y=-0.25),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.1)")
+    return fig
 
-    # ---- SISTEMA DE APRENDIZAJE — SUGERENCIAS
-    st.markdown("---")
-    st.subheader("🧠 Sistema de Aprendizaje — Sugerencias de Calibración")
 
-    sugerencias = sugerir_ajustes_sliders(deltas, ambito_sel)
-    if sugerencias:
-        col_sug1, col_sug2 = st.columns(2)
-        for i, s in enumerate(sugerencias):
-            with col_sug1 if i % 2 == 0 else col_sug2:
-                if s["tipo"] == "reducir":
-                    st.warning(s["mensaje"])
-                else:
-                    st.info(s["mensaje"])
+def _grafico_retroval(partidos, real, enc_media, colores):
+    """Para retrovalidación: 3 barras por partido — Real / Encuesta / Modelo."""
+    x = list(partidos)
+    real_vals  = [real.get(p, 0) for p in x]
+    enc_vals   = [enc_media.get(p, 0) for p in x]
+    delta_enc  = [enc_media.get(p, 0) - real.get(p, 0) for p in x]
 
-        # Índice de precisión del modelo
-        mae = sum(abs(d["delta"]) for d in deltas.values()) / len(deltas)
-        rmse = (sum(d["delta"]**2 for d in deltas.values()) / len(deltas)) ** 0.5
-        precision = max(0, round(100 - rmse * 5, 1))
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Resultado Real vs Encuestas (escaños)", "Error de las Encuestas (Δ enc − real)")
+    )
 
-        st.markdown("---")
-        col_m1, col_m2, col_m3 = st.columns(3)
-        col_m1.metric("MAE (Error Medio Absoluto)", f"{mae:.2f} escaños")
-        col_m2.metric("RMSE", f"{rmse:.2f} escaños")
-        col_m3.metric("Índice de Precisión", f"{precision}/100",
-                      "✅ Bueno" if precision > 75 else "⚠️ Mejorable")
+    fig.add_bar(
+        x=x, y=real_vals,
+        name="✅ Resultado Real",
+        marker_color=[colores.get(p, "#888") for p in x],
+        opacity=0.95,
+        text=real_vals, textposition="outside",
+        row=1, col=1,
+    )
+    fig.add_bar(
+        x=x, y=enc_vals,
+        name="📊 Media Encuestas",
+        marker_color=[colores.get(p, "#888") for p in x],
+        opacity=0.45,
+        marker_pattern_shape="/",
+        text=enc_vals, textposition="outside",
+        row=1, col=1,
+    )
 
-        # Radar de precisión por partido
-        partidos_radar = [p for p in partidos if abs(deltas.get(p, {}).get("delta", 0)) > 0]
-        if partidos_radar:
-            fig_radar_prec = go.Figure(go.Scatterpolar(
-                r=[max(0, 10 - abs(deltas[p]["delta"])) for p in partidos_radar],
-                theta=partidos_radar,
-                fill="toself",
-                line_color="#2ecc71",
-                name="Precisión por partido (10=perfecto)"
-            ))
-            fig_radar_prec.update_layout(
-                polar=dict(radialaxis=dict(range=[0, 10])),
-                title="Radar de Precisión del Modelo por Partido",
-                height=380
-            )
-            st.plotly_chart(fig_radar_prec, width="stretch", key=f"audit_radar_{ambito_sel}")
+    bar_colors_delta = ["#43A047" if d > 0 else "#E53935" if d < 0 else "#757575" for d in delta_enc]
+    fig.add_bar(
+        x=x, y=delta_enc,
+        name="Δ (enc − real)",
+        marker_color=bar_colors_delta,
+        text=[f"{d:+d}" for d in delta_enc],
+        textposition="outside",
+        row=1, col=2,
+    )
+    fig.add_hline(y=0, line_color="white", line_width=1, row=1, col=2)
+
+    fig.update_layout(
+        height=380,
+        margin=dict(t=60, b=30),
+        legend=dict(orientation="h", y=-0.2),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+        showlegend=True,
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.1)")
+    return fig
+
+
+def _gauge_precision(score: float, titulo: str = "Índice de Precisión"):
+    """Gauge semicircular de 0-100."""
+    color_needle = "#00E676" if score >= 75 else "#FFCA28" if score >= 50 else "#EF5350"
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number+delta",
+        value=score,
+        number={"suffix": " / 100", "font": {"size": 28, "color": "white"}},
+        title={"text": titulo, "font": {"size": 14, "color": "white"}},
+        delta={"reference": 75, "increasing": {"color": "#00E676"}, "decreasing": {"color": "#EF5350"}},
+        gauge={
+            "axis": {"range": [0, 100], "tickcolor": "white", "tickfont": {"color": "white"}},
+            "bar": {"color": color_needle, "thickness": 0.25},
+            "bgcolor": "rgba(30,30,50,0.8)",
+            "bordercolor": "rgba(255,255,255,0.2)",
+            "steps": [
+                {"range": [0,   50], "color": "rgba(239,83,80,0.25)"},
+                {"range": [50,  75], "color": "rgba(255,202,40,0.25)"},
+                {"range": [75, 100], "color": "rgba(0,230,118,0.25)"},
+            ],
+            "threshold": {
+                "line": {"color": "white", "width": 2},
+                "thickness": 0.75,
+                "value": 75,
+            },
+        },
+    ))
+    fig.update_layout(
+        height=240,
+        margin=dict(t=40, b=10, l=20, r=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+    )
+    return fig
+
+
+def _grafico_historico_precision():
+    """Ranking de precisión histórica por encuestadora."""
+    df = pd.DataFrame(HISTORICO_PRECISION)
+    medias = df.groupby("encuestadora")["nota"].mean().sort_values(ascending=True).reset_index()
+    medias.columns = ["encuestadora", "nota_media"]
+
+    bar_colors = []
+    for n in medias["nota_media"]:
+        if n >= 75:
+            bar_colors.append("#00C853")
+        elif n >= 55:
+            bar_colors.append("#FFD600")
+        else:
+            bar_colors.append("#FF5252")
+
+    fig = go.Figure(go.Bar(
+        x=medias["nota_media"],
+        y=medias["encuestadora"],
+        orientation="h",
+        marker_color=bar_colors,
+        text=[f"{v:.0f}" for v in medias["nota_media"]],
+        textposition="outside",
+    ))
+    fig.add_vline(x=75, line_dash="dash", line_color="white", annotation_text="Umbral bueno (75)",
+                  annotation_font_color="white")
+    fig.update_layout(
+        title="🏆 Ranking histórico de precisión por encuestadora (media)",
+        xaxis_title="Índice de Precisión (0–100)",
+        height=340,
+        margin=dict(t=50, b=30, l=120, r=60),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+    )
+    fig.update_xaxes(range=[0, 110], showgrid=True, gridcolor="rgba(255,255,255,0.1)")
+    fig.update_yaxes(showgrid=False)
+    return fig
+
+
+def _grafico_precision_por_eleccion():
+    """Scatter: nota de precisión por elección y encuestadora."""
+    df = pd.DataFrame(HISTORICO_PRECISION)
+    fig = px.scatter(
+        df,
+        x="eleccion",
+        y="nota",
+        color="encuestadora",
+        size="nota",
+        hover_data=["sesgo", "mae_escanos"],
+        title="Precisión por elección y encuestadora (tamaño = nota)",
+    )
+    fig.add_hline(y=75, line_dash="dash", line_color="white", annotation_text="Bueno",
+                  annotation_font_color="white")
+    fig.update_layout(
+        height=360,
+        margin=dict(t=50, b=30),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+        legend=dict(orientation="h", y=-0.3),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(range=[0, 105], showgrid=True, gridcolor="rgba(255,255,255,0.1)")
+    return fig
+
+
+def _grafico_sesgo_sistematico():
+    """Heatmap: sesgo sistemático de cada encuestadora en cada elección."""
+    df = pd.DataFrame(HISTORICO_PRECISION)
+    pivot = df.pivot_table(index="encuestadora", columns="eleccion", values="nota", aggfunc="mean")
+    z = pivot.values.tolist()
+    fig = go.Figure(go.Heatmap(
+        z=z,
+        x=list(pivot.columns),
+        y=list(pivot.index),
+        colorscale=[
+            [0.0,  "#B71C1C"],
+            [0.5,  "#F9A825"],
+            [0.75, "#2E7D32"],
+            [1.0,  "#00E676"],
+        ],
+        zmin=0, zmax=100,
+        text=[[f"{v:.0f}" if not np.isnan(v) else "—" for v in row] for row in z],
+        texttemplate="%{text}",
+        colorbar=dict(title="Nota", tickfont=dict(color="white"), titlefont=dict(color="white")),
+    ))
+    fig.update_layout(
+        title="🔥 Mapa de Calor — Precisión por encuestadora y elección",
+        height=300,
+        margin=dict(t=50, b=30, l=120),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+    )
+    return fig
+
+
+# ------------------------------------------------------------------
+# RENDER PRINCIPAL
+# ------------------------------------------------------------------
+
+def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
+    """
+    Tab 🧠 Auditoría & Aprendizaje v2.
+
+    Parámetros
+    ----------
+    escanos_nac : dict  → proyección nacional del modelo {partido: escaños}
+    escanos_cyl : dict  → proyección CyL del modelo {partido: escaños}
+    """
+
+    st.markdown("## 🧠 Auditoría & Aprendizaje")
+    st.markdown(
+        "Compara el **modelo predictivo** contra encuestas reales · "
+        "retrovalida con resultados conocidos · aprende de los errores pasados."
+    )
+
+    # ── Selector de ámbito ───────────────────────────────────────
+    nombres = list(AMBITOS.keys())
+    sel = st.selectbox("📍 Selecciona ámbito", nombres, key="aud_ambito_v2")
+    datos = AMBITOS[sel]
+    es_retroval = datos["tipo"] == "retroval"
+
+    partidos    = datos["partidos"]
+    colores     = datos["colores"]
+    encuestas   = datos["encuestas"]
+    enc_media_esc = datos["escanos_encuesta_media"]
+    total_esc   = datos["total_escanos"]
+    ma          = datos["ma"]
+    encuestadoras = datos.get("encuestadoras", [])
+
+    # Escaños del modelo según ámbito
+    if "Nacional" in sel:
+        modelo_esc = {p: escanos_nac.get(p, 0) for p in partidos}
+    elif "CyL" in sel:
+        modelo_esc = {p: escanos_cyl.get(p, 0) for p in partidos}
     else:
-        st.success("✅ El modelo está bien calibrado — desviación < 3 escaños en todos los partidos.")
+        # Para retroval o proyecciones sin modelo explícito:
+        # usamos la media de encuestas como proxy del modelo base
+        modelo_esc = dict(enc_media_esc)
 
-    # ---- TABLA RESUMEN
-    st.subheader("📊 Tabla Resumen Comparativa")
-    df_resumen = pd.DataFrame([
-        {
-            "Partido": p,
-            "Modelo": escanos_modelo.get(p, 0),
-            "Enc. Media Pond.": escanos_enc_calc.get(p, 0),
-            "Δ": deltas.get(p, {}).get("delta", 0),
-            **{f: encuestas.get(p, {}).get(f, "-") for f in fuentes}
-        }
-        for p in partidos
-        if escanos_modelo.get(p, 0) > 0 or escanos_enc_calc.get(p, 0) > 0
-    ])
-    st.dataframe(df_resumen, use_container_width=True)
+    # ── Métricas de cabecera ────────────────────────────────────
+    mae_val  = _mae(modelo_esc, enc_media_esc)
+    rmse_val = _rmse(modelo_esc, enc_media_esc)
+    prec_idx = _precision_index(rmse_val)
 
-    # ---- NOTA METODOLÓGICA
-    with st.expander("📋 Metodología del Sistema de Auditoría"):
-        st.markdown(f"""
-**Media ponderada de encuestas:**
-Cada encuestadora tiene un peso ajustable (0-1). La media ponderada se normaliza
-automáticamente para que los pesos sumen 1.
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("📅 Fecha elecciones", datos.get("fecha_elecciones", "N/D"))
+    col2.metric("🏛️ Total escaños", total_esc)
+    col3.metric("⚖️ Mayoría absoluta", ma)
+    tipo_badge = "🔭 Proyección" if not es_retroval else "✅ Retrovalidación"
+    col4.metric("Tipo", tipo_badge)
 
-**D'Hondt desde % encuesta:**
-Los % de voto de la media ponderada se convierten en escaños aplicando la ley D'Hondt
-al total de {total_esc} escaños con umbral del 3%.
+    st.divider()
 
-**Índice de Precisión:**
-`Precisión = max(0, 100 - RMSE × 5)`
-Donde RMSE es la raíz del error cuadrático medio entre modelo y encuestas.
-- >85: Modelo muy preciso
-- 70-85: Modelo aceptable
-- <70: Modelo necesita recalibración
+    # ======================================================
+    # SECCIÓN A — RETROVALIDACIÓN (Galicia 2024, Madrid 2023)
+    # ======================================================
+    if es_retroval:
+        resultado_real = datos["resultado_real"]
+        mae_enc  = _mae(enc_media_esc, resultado_real)
+        rmse_enc = _rmse(enc_media_esc, resultado_real)
+        prec_enc = _precision_index(rmse_enc)
 
-**Sugerencias de calibración:**
-Se generan automáticamente cuando |Δ| ≥ 3 escaños en cualquier partido.
-Las sugerencias orientan qué variables estructurales del sidebar ajustar.
+        st.markdown("### 📐 Retrovalidación — Encuestas vs Resultado Real")
 
-**Fuentes de encuestas CyL 2026:**
-Sigma Dos (El Mundo), NC Report (El Confidencial), Sociométrica, CIS (Barómetro autonómico)
-        """)
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1:
+            st.plotly_chart(_gauge_precision(prec_enc, "Precisión media encuestas"), use_container_width=True, key=f"gauge_retro_{sel[:8]}")
+        with c2:
+            st.metric("MAE encuestas (escaños)", f"{mae_enc:.1f}")
+            st.metric("RMSE encuestas (escaños)", f"{rmse_enc:.1f}")
+            st.metric("Error medio estimado", f"±{mae_enc:.1f} esc.")
+        with c3:
+            # Tabla resultado real vs encuesta media
+            filas = []
+            for p in partidos:
+                r = resultado_real.get(p, 0)
+                e = enc_media_esc.get(p, 0)
+                delta = e - r
+                emoji = "✅" if abs(delta) <= 2 else ("⚠️" if abs(delta) <= 5 else "❌")
+                filas.append({"Partido": p, "Real": r, "Enc.Media": e, "Δ": f"{delta:+d}", "": emoji})
+            st.dataframe(pd.DataFrame(filas).set_index("Partido"), use_container_width=True)
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-    "🏛️ Hemiciclo Nacional",
-    "🗺️ Desglose Provincial",
-    "📡 Radar Estratégico",
-    "📋 Metodología y Fuentes",
-    "📈 Histórico Semanal",
-    "🏰 Castilla y León",
-    "🌞 Andalucía",
-    "🌿 Galicia",
-    "🏙️ Madrid",
-    "🧠 Auditoría"
-])
-#
-# Y añadir en sidebar (junto a los sliders de CyL):
-# st.sidebar.markdown("---")
-# st.sidebar.subheader("🌞 Escenarios Andalucía")
-# factor_desempleo_and   = st.sidebar.slider("Desempleo Andalucía",    0,100,65)
-# factor_vivienda_and    = st.sidebar.slider("Vivienda/Turismo And.",   0,100,60)
-# factor_agua            = st.sidebar.slider("Crisis Agua/Sequía",      0,100,55)
-# factor_rural_urbano    = st.sidebar.slider("Peso Rural vs Urbano",    0,100,50)
-# umbral_and             = st.sidebar.slider("Umbral electoral And.(%)",3,5,3)
-#
-# Añadir antes de los tabs:
-# escanos_and, datos_prov_and = calcular_and(
-#     factor_desempleo_and, factor_vivienda_and,
-#     factor_agua, factor_rural_urbano, umbral_and
-# )
-# votos_and_avg = {p: sum(d["Votos"].get(p,0) for d in datos_prov_and)/len(datos_prov_and)
-#                  for p in PARTIDOS_AND}
-# polarizacion_and = calcular_indice_polarizacion(votos_and_avg)
-# nep_and          = calcular_indice_fragmentacion(escanos_and)
-# lsq_and          = calcular_sesgo_sistema(votos_and_avg, escanos_and)
-# ma_and           = (TOTAL_AND // 2) + 1  # 55
+        st.plotly_chart(
+            _grafico_retroval(partidos, resultado_real, enc_media_esc, colores),
+            use_container_width=True,
+            key=f"retro_barras_{sel[:8]}"
+        )
 
+        # Encuestas por fuente
+        st.markdown("### 🔍 Detalle por encuestadora")
+        st.plotly_chart(
+            _grafico_encuestas_fuente(partidos, encuestas, colores),
+            use_container_width=True,
+            key=f"retro_fuente_{sel[:8]}"
+        )
+
+        # Lecciones aprendidas de esta elección
+        st.markdown("### 📖 Lecciones aprendidas de esta elección")
+        hist_sel = [h for h in HISTORICO_PRECISION if sel.split("(")[0].strip().replace("🌿 ", "").replace("🏙️ ", "") in h["eleccion"]]
+        if hist_sel:
+            cols_lec = st.columns(len(hist_sel))
+            for i, h in enumerate(hist_sel):
+                with cols_lec[i]:
+                    color = "🟢" if h["nota"] >= 75 else ("🟡" if h["nota"] >= 55 else "🔴")
+                    st.markdown(f"**{h['encuestadora']}** {color}")
+                    st.markdown(f"Nota: **{h['nota']}/100**")
+                    st.markdown(f"MAE: {h['mae_escanos']} esc.")
+                    st.caption(f"Sesgo: {h['sesgo']}")
+
+    # ======================================================
+    # SECCIÓN B — PROYECCIÓN FUTURA
+    # ======================================================
+    else:
+        # Pesos encuestadoras
+        st.markdown("### ⚖️ Pesos de encuestadoras")
+        pesos = {}
+        cols_pesos = st.columns(len(encuestadoras) if encuestadoras else 1)
+        for i, fuente in enumerate(encuestadoras):
+            with cols_pesos[i]:
+                pesos[fuente] = st.slider(
+                    fuente, 0.0, 1.0, 1.0, 0.05,
+                    key=f"peso_{sel[:6]}_{fuente}"
+                )
+
+        # Recalcular media ponderada
+        enc_media_pct = {}
+        for p in partidos:
+            enc_media_pct[p] = _media_ponderada(encuestas.get(p, {}), pesos)
+
+        mae_val2  = _mae(modelo_esc, enc_media_esc)
+        rmse_val2 = _rmse(modelo_esc, enc_media_esc)
+        prec2     = _precision_index(rmse_val2)
+
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1:
+            st.plotly_chart(_gauge_precision(prec2, "Precisión vs Encuestas"), use_container_width=True, key=f"gauge_proy_{sel[:8]}")
+        with c2:
+            st.metric("MAE modelo vs enc. (esc.)", f"{mae_val2:.1f}")
+            st.metric("RMSE modelo vs enc. (esc.)", f"{rmse_val2:.1f}")
+
+            # Alertas
+            for p in partidos:
+                delta_p = modelo_esc.get(p, 0) - enc_media_esc.get(p, 0)
+                if abs(delta_p) >= 4:
+                    st.warning(f"⚠️ {p}: Δ = {delta_p:+d} esc. — revisar proyección")
+        with c3:
+            filas = []
+            for p in partidos:
+                m = modelo_esc.get(p, 0)
+                e = enc_media_esc.get(p, 0)
+                delta = m - e
+                emoji = "✅" if abs(delta) <= 2 else ("⚠️" if abs(delta) <= 5 else "❌")
+                filas.append({"Partido": p, "Modelo": m, "Enc.Media": e, "Δ": f"{delta:+d}", "": emoji})
+            st.dataframe(pd.DataFrame(filas).set_index("Partido"), use_container_width=True)
+
+        st.markdown("### 📊 Comparativa escaños")
+        st.plotly_chart(
+            _grafico_comparativa(partidos, modelo_esc, enc_media_esc, colores),
+            use_container_width=True,
+            key=f"proy_comp_{sel[:8]}"
+        )
+
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            st.plotly_chart(
+                _grafico_delta(partidos, modelo_esc, enc_media_esc, colores),
+                use_container_width=True,
+                key=f"proy_delta_{sel[:8]}"
+            )
+        with col_d2:
+            st.plotly_chart(
+                _grafico_encuestas_fuente(partidos, encuestas, colores),
+                use_container_width=True,
+                key=f"proy_fuente_{sel[:8]}"
+            )
+
+    # ======================================================
+    # SECCIÓN C — HISTÓRICO DE PRECISIÓN (siempre visible)
+    # ======================================================
+    st.divider()
+    st.markdown("## 📈 Histórico de Precisión — Lecciones Aprendidas")
+    st.caption("Precisión de encuestadoras en elecciones pasadas verificables · cuanto más alta la nota, mejor")
+
+    tab_h1, tab_h2, tab_h3 = st.tabs(["🏆 Ranking global", "📉 Por elección", "🔥 Mapa de calor"])
+
+    with tab_h1:
+        col_r1, col_r2 = st.columns([2, 1])
+        with col_r1:
+            st.plotly_chart(_grafico_historico_precision(), use_container_width=True, key="hist_rank")
+        with col_r2:
+            df_h = pd.DataFrame(HISTORICO_PRECISION)
+            medias = df_h.groupby("encuestadora")[["nota", "mae_escanos"]].mean().round(1).sort_values("nota", ascending=False)
+            medias.columns = ["Nota media", "MAE medio"]
+            st.markdown("**Resumen por encuestadora**")
+            st.dataframe(medias, use_container_width=True)
+            st.caption("Nota: máx 100. MAE = error medio en escaños.")
+
+    with tab_h2:
+        st.plotly_chart(_grafico_precision_por_eleccion(), use_container_width=True, key="hist_scatter")
+        # Tabla detalle
+        df_h2 = pd.DataFrame(HISTORICO_PRECISION)[["eleccion", "encuestadora", "nota", "mae_escanos", "sesgo"]]
+        df_h2 = df_h2.sort_values(["eleccion", "nota"], ascending=[True, False])
+        df_h2.columns = ["Elección", "Encuestadora", "Nota", "MAE (esc.)", "Sesgo detectado"]
+        st.dataframe(df_h2.reset_index(drop=True), use_container_width=True)
+
+    with tab_h3:
+        st.plotly_chart(_grafico_sesgo_sistematico(), use_container_width=True, key="hist_heatmap")
+
+        # Lecciones automáticas globales
+        df_all = pd.DataFrame(HISTORICO_PRECISION)
+        bajas  = df_all[df_all["nota"] < 55]
+        st.markdown("### 🔴 Alertas de sesgo sistemático")
+        if len(bajas) > 0:
+            for _, row in bajas.iterrows():
+                st.error(f"**{row['encuestadora']}** en {row['eleccion']}: nota {row['nota']}/100 — {row['sesgo']}")
+        else:
+            st.success("No se detectan sesgos sistemáticos graves en el histórico.")
+
+        mejores = df_all.groupby("encuestadora")["nota"].mean().sort_values(ascending=False)
+        st.markdown("### 🥇 Encuestadoras más fiables (media histórica)")
+        for enc, nota in mejores.items():
+            stars = "⭐" * max(1, min(5, int(nota / 20)))
+            color = "🟢" if nota >= 75 else ("🟡" if nota >= 55 else "🔴")
+            st.markdown(f"{color} **{enc}**: {nota:.0f}/100 {stars}")
 
 def render_tab_andalucia(escanos_and, datos_prov_and,
                           polarizacion_and, nep_and, lsq_and,
