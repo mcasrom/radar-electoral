@@ -1456,6 +1456,121 @@ def obtener_brent_eur():
 # ===============================
 
 
+
+# ===============================
+# HEMICICLO — GRÁFICOS PARLAMENTO
+# ===============================
+
+def hacer_herradura(escanos_dict, colores, titulo, total=350):
+    """
+    Genera gráfico en forma de herradura (semicírculo) que representa
+    la composición de un parlamento. Usa scatter polar con puntos
+    distribuidos en arco de 180 grados de izquierda a derecha.
+    """
+    import numpy as np
+
+    # Ordenar partidos por posición ideológica (izquierda → derecha)
+    orden_ideologico = ["BILDU", "ERC", "JUNTS", "BNG", "SUMAR", "PSOE",
+                        "CC", "PNV", "UPN", "OTROS", "PP", "VOX", "SALF"]
+    partidos_ordenados = [p for p in orden_ideologico if p in escanos_dict and escanos_dict[p] > 0]
+    # Añadir cualquier partido no contemplado en el orden
+    for p in escanos_dict:
+        if p not in partidos_ordenados and escanos_dict[p] > 0:
+            partidos_ordenados.append(p)
+
+    # Distribuir escaños en arco semicircular (180° = π radianes)
+    # De izquierda (π) a derecha (0), de exterior a interior en filas
+    FILAS = 8
+    escanos_por_fila = [total // FILAS + (1 if i < total % FILAS else 0) for i in range(FILAS)]
+
+    # Generar posiciones de todos los escaños
+    todas_posiciones = []
+    for fila in range(FILAS):
+        n = escanos_por_fila[fila]
+        radio = 1.0 + fila * 0.15
+        angulos = np.linspace(np.pi, 0, n)
+        for ang in angulos:
+            todas_posiciones.append((radio * np.cos(ang), radio * np.sin(ang)))
+
+    # Asignar partidos a posiciones
+    asignaciones = []
+    for p in partidos_ordenados:
+        asignaciones.extend([p] * escanos_dict.get(p, 0))
+    # Rellenar si faltan
+    while len(asignaciones) < len(todas_posiciones):
+        asignaciones.append("OTROS")
+    asignaciones = asignaciones[:len(todas_posiciones)]
+
+    # Crear figura
+    fig = go.Figure()
+    for p in partidos_ordenados:
+        xs = [todas_posiciones[i][0] for i, a in enumerate(asignaciones) if a == p]
+        ys = [todas_posiciones[i][1] for i, a in enumerate(asignaciones) if a == p]
+        color = colores.get(p, "#aaaaaa")
+        fig.add_trace(go.Scatter(
+            x=xs, y=ys,
+            mode="markers",
+            marker=dict(size=7, color=color, line=dict(width=0.5, color="white")),
+            name=f"{p} ({escanos_dict.get(p,0)})",
+            hovertemplate=f"<b>{p}</b><br>Escaños: {escanos_dict.get(p,0)}<extra></extra>"
+        ))
+
+    # Línea de mayoría absoluta
+    ma = total // 2 + 1
+    fig.add_annotation(
+        x=0, y=0.05,
+        text=f"<b>MA: {ma}</b>",
+        showarrow=False,
+        font=dict(size=12, color="red")
+    )
+    fig.update_layout(
+        title=dict(text=titulo, x=0.5, font=dict(size=14)),
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5,
+                    font=dict(size=10)),
+        xaxis=dict(visible=False, range=[-1.4, 1.4]),
+        yaxis=dict(visible=False, range=[-0.1, 1.5], scaleanchor="x"),
+        height=420,
+        margin=dict(l=10, r=10, t=40, b=80),
+        plot_bgcolor="white",
+        paper_bgcolor="white"
+    )
+    return fig
+
+
+def hacer_donut(escanos_dict, colores, titulo):
+    """Gráfico donut con escaños y porcentajes."""
+    partidos = [p for p, v in escanos_dict.items() if v > 0]
+    valores  = [escanos_dict[p] for p in partidos]
+    colores_lista = [colores.get(p, "#aaaaaa") for p in partidos]
+    total = sum(valores)
+    labels = [f"{p}<br>{v} ({v/total*100:.1f}%)" for p, v in zip(partidos, valores)]
+
+    fig = go.Figure(go.Pie(
+        labels=partidos,
+        values=valores,
+        hole=0.45,
+        marker=dict(colors=colores_lista,
+                    line=dict(color="white", width=2)),
+        textinfo="label+value",
+        hovertemplate="<b>%{label}</b><br>Escaños: %{value}<br>%{percent}<extra></extra>",
+        sort=False
+    ))
+    fig.add_annotation(
+        text=f"<b>{total}</b><br>escaños",
+        x=0.5, y=0.5, showarrow=False,
+        font=dict(size=14)
+    )
+    fig.update_layout(
+        title=dict(text=titulo, x=0.5, font=dict(size=14)),
+        showlegend=True,
+        legend=dict(orientation="h", yanchor="bottom", y=-0.3,
+                    xanchor="center", x=0.5, font=dict(size=10)),
+        height=380,
+        margin=dict(l=10, r=10, t=40, b=80)
+    )
+    return fig
+
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🏛️ Hemiciclo Nacional",
     "🗺️ Desglose Provincial",
@@ -1783,6 +1898,58 @@ with tab1:
                 st.write(f"{color} {k}: {v} escaños restantes")
 
     st.write(f"**Total escaños:** {df_hemi['Escaños'].sum()} / 350")
+
+
+    # ---- HEMICICLO VISUAL — Herradura + Donut
+    st.markdown("---")
+    st.subheader("🏛️ Hemiciclo Visual — Proyección vs. Resultado Real 2023")
+
+    # Resultado real 2023 (composición actual del Congreso)
+    REAL_2023 = {
+        "PP":    137,
+        "PSOE":  121,
+        "VOX":    33,
+        "SUMAR":  31,
+        "ERC":     7,
+        "JUNTS":   7,
+        "BILDU":   6,
+        "PNV":     5,
+        "CC":      1,
+        "BNG":     1,
+        "UPN":     1,
+        "OTROS":   0,
+        "SALF":    0,
+    }
+
+    col_h1, col_h2 = st.columns(2)
+    with col_h1:
+        fig_herr_sim = hacer_herradura(
+            escanos_totales, PARTIDOS_COLORES,
+            "Proyección Simulada — Herradura"
+        )
+        st.plotly_chart(fig_herr_sim, width="stretch", key="herr_sim")
+
+    with col_h2:
+        fig_herr_real = hacer_herradura(
+            REAL_2023, PARTIDOS_COLORES,
+            "Resultado Real 2023 — Herradura"
+        )
+        st.plotly_chart(fig_herr_real, width="stretch", key="herr_real")
+
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        fig_donut_sim = hacer_donut(
+            escanos_totales, PARTIDOS_COLORES,
+            "Proyección Simulada — Composición"
+        )
+        st.plotly_chart(fig_donut_sim, width="stretch", key="donut_sim")
+
+    with col_d2:
+        fig_donut_real = hacer_donut(
+            REAL_2023, PARTIDOS_COLORES,
+            "Resultado Real 2023 — Composición"
+        )
+        st.plotly_chart(fig_donut_real, width="stretch", key="donut_real")
 
 # ========== TAB 2: DESGLOSE PROVINCIAL ==========
 with tab2:
