@@ -119,6 +119,13 @@ fiabilidad = st.sidebar.slider("📊 Fiabilidad Datos Oficiales (%)", 0, 100, 80
 st.sidebar.markdown("---")
 
 st.sidebar.markdown("---")
+st.sidebar.markdown("---")
+st.sidebar.subheader("🏴󠁥󠁳󠁰󠁶󠁿 Escenarios Euskadi")
+factor_independentismo = st.sidebar.slider("Independentismo vasco",   0,100,50)
+factor_izq_abertzale   = st.sidebar.slider("Izq. abertzale vs PNV",   0,100,50)
+factor_economia_vasca  = st.sidebar.slider("Economía vasca (empleo)", 0,100,60)
+factor_concierto_eco   = st.sidebar.slider("Concierto Económico",     0,100,55)
+umbral_eus             = st.sidebar.slider("Umbral electoral Eus.(%)",3,5,3)
 st.sidebar.subheader("🌿 Escenarios Galicia")
 factor_despoblacion_gal = st.sidebar.slider("Despoblación Galicia",   0, 100, 60)
 factor_bng_urbano       = st.sidebar.slider("BNG Urbano (Vigo/Coruña)",0,100, 55)
@@ -704,6 +711,122 @@ ESCANOS_GAL = {
     "Pontevedra": 23
 }
 TOTAL_GAL = sum(ESCANOS_GAL.values())  # 76
+
+# ===============================
+# EUSKADI — PARLAMENTO VASCO
+# ===============================
+PARTIDOS_EUS = ["PNV", "EH Bildu", "PSE-EE", "PP", "Sumar", "VOX", "OTROS"]
+COLORES_EUS = {"PNV":"#cc0000","EH Bildu":"#4CAF50","PSE-EE":"#E53935","PP":"#1565C0","Sumar":"#9C27B0","VOX":"#00BCD4","OTROS":"#c7c7c7"}
+REAL_EUS_2024 = {"PNV":27,"EH Bildu":27,"PSE-EE":12,"PP":7,"Sumar":1,"VOX":1,"OTROS":0}
+BASE_EUS = {"PNV":34.5,"EH Bildu":32.0,"PSE-EE":14.0,"PP":9.5,"Sumar":3.0,"VOX":2.5,"OTROS":4.5}
+ESCANOS_EUS = {"Álava":25,"Bizkaia":25,"Gipuzkoa":25}
+TOTAL_EUS = sum(ESCANOS_EUS.values())  # 75
+
+def ajustar_escenario_eus(base_eus, f_indep, f_izq, f_econ, f_conc):
+    a = base_eus.copy()
+    a["PNV"]      += (f_indep-50)*0.012; a["EH Bildu"] += (f_indep-50)*0.016
+    a["PSE-EE"]   -= (f_indep-50)*0.010; a["PP"]       -= (f_indep-50)*0.008
+    a["EH Bildu"] += (f_izq-50)*0.020;   a["PNV"]      -= (f_izq-50)*0.015
+    a["PSE-EE"]   -= (f_izq-50)*0.005
+    a["PNV"]      += (f_econ-50)*0.010;  a["PP"]       += (f_econ-50)*0.006
+    a["EH Bildu"] -= (f_econ-50)*0.006
+    a["PNV"]      += (f_conc-50)*0.010;  a["EH Bildu"] += (f_conc-50)*0.008
+    a["PP"]       -= (f_conc-50)*0.008
+    for p in a: a[p] = max(0.0, a[p])
+    return normalizar(a)
+
+def ajustar_territorial_eus(base, terr):
+    d = base.copy()
+    if terr == "Álava":
+        d["EH Bildu"]+=2.5; d["PP"]+=3.5; d["PNV"]-=2.5; d["VOX"]+=1.5
+    if terr == "Bizkaia":
+        d["PNV"]+=4.0; d["EH Bildu"]-=1.5; d["PP"]-=1.0
+    if terr == "Gipuzkoa":
+        d["EH Bildu"]+=5.0; d["PNV"]-=1.5; d["PSE-EE"]-=1.0
+    ruido = (100-fiabilidad)/100
+    for p in d:
+        d[p] += random.uniform(-ruido*2.5, ruido*2.5)
+        d[p] = max(0.0, d[p])
+    return normalizar(d)
+
+def aplicar_umbral_eus(votos, umbral):
+    return normalizar({p:v for p,v in votos.items() if v>=umbral})
+
+def calcular_eus(f_indep, f_izq, f_econ, f_conc, umbral_eus):
+    base = ajustar_escenario_eus(BASE_EUS, f_indep, f_izq, f_econ, f_conc)
+    esc = {p:0 for p in PARTIDOS_EUS}
+    terrs = []
+    for terr, n in ESCANOS_EUS.items():
+        vr = ajustar_territorial_eus(base.copy(), terr)
+        v  = aplicar_umbral_eus(vr, umbral_eus)
+        r  = dhondt(v, n)
+        for p in PARTIDOS_EUS: esc[p] = esc.get(p,0) + r.get(p,0)
+        terrs.append({"Territorio":terr,"Escaños_total":n,"Reparto":r,"Votos":v,"Votos_raw":vr})
+    return esc, terrs
+
+def render_tab_euskadi(esc, terrs, pol, nep, lsq, f_indep, f_izq, f_econ, f_conc):
+    ma = (TOTAL_EUS//2)+1
+    st.header("🏴󠁥󠁳󠁰󠁶󠁿 Euskadi — Laboratorio Electoral Autonómico")
+    st.markdown(f"**3 territorios históricos** | **{TOTAL_EUS} diputados** | **Mayoría absoluta: {ma}** | D'Hondt | Barrera 3%")
+    st.markdown("---")
+    col1,col2,col3,col4 = st.columns(4)
+    pf = max(esc, key=esc.get)
+    col1.metric("Primera fuerza", f"{pf} ({esc[pf]})")
+    col2.metric("Mayoría absoluta", ma)
+    col3.metric("Polarización HHI", f"{pol:.3f}")
+    col4.metric("Diputados totales", TOTAL_EUS)
+
+    st.subheader("🏛️ Hemiciclo Parlamento Vasco")
+    df_h = pd.DataFrame([{"Partido":p,"Escaños":v} for p,v in esc.items() if v>0]).sort_values("Escaños",ascending=False)
+    fig_h = px.bar(df_h, x="Partido", y="Escaños", color="Partido",
+                   color_discrete_map=COLORES_EUS, text="Escaños",
+                   title=f"Parlamento Vasco — {TOTAL_EUS} diputados")
+    fig_h.update_traces(textposition="outside")
+    fig_h.update_layout(showlegend=False, height=400)
+    st.plotly_chart(fig_h, use_container_width=True)
+
+    st.subheader("⚖️ Análisis de bloques")
+    b_nac = esc.get("PNV",0)+esc.get("EH Bildu",0)
+    b_gov = esc.get("PNV",0)+esc.get("PSE-EE",0)
+    b_der = esc.get("PP",0)+esc.get("VOX",0)
+    c1,c2,c3,c4 = st.columns(4)
+    c1.metric("Bloque nac. PNV+Bildu", b_nac, delta="✅ MA" if b_nac>=ma else f"{b_nac-ma}")
+    c2.metric("Coalición PNV+PSE", b_gov, delta="✅ MA" if b_gov>=ma else f"{b_gov-ma}")
+    c3.metric("Bloque PP+VOX", b_der)
+    c4.metric("NEP / LSq", f"{nep:.2f} / {lsq:.2f}")
+
+    st.subheader("🗺️ Resultados por territorio histórico")
+    cols = st.columns(3)
+    for i, d in enumerate(terrs):
+        with cols[i]:
+            st.markdown(f"**{d['Territorio']}** ({d['Escaños_total']} esc.)")
+            df_t = pd.DataFrame([{"Partido":p,"Escaños":v} for p,v in d["Reparto"].items() if v>0]).sort_values("Escaños",ascending=False)
+            fig_t = px.bar(df_t, x="Partido", y="Escaños", color="Partido",
+                           color_discrete_map=COLORES_EUS, text="Escaños", height=280)
+            fig_t.update_traces(textposition="outside")
+            fig_t.update_layout(showlegend=False, margin=dict(t=20,b=20,l=10,r=10))
+            st.plotly_chart(fig_t, use_container_width=True)
+
+    st.subheader("🔍 Retrovalidación — Resultado real 21A 2024")
+    cr, cs = st.columns(2)
+    with cr:
+        st.markdown("**Real 2024**")
+        dr = pd.DataFrame([{"Partido":p,"Escaños":v} for p,v in REAL_EUS_2024.items() if v>0]).sort_values("Escaños",ascending=False)
+        st.dataframe(dr, use_container_width=True, hide_index=True)
+        st.plotly_chart(px.pie(dr, names="Partido", values="Escaños", color="Partido",
+                               color_discrete_map=COLORES_EUS, title="Real 2024"), use_container_width=True)
+    with cs:
+        st.markdown("**Simulación 2026**")
+        ds = pd.DataFrame([{"Partido":p,"Escaños":v} for p,v in esc.items() if v>0]).sort_values("Escaños",ascending=False)
+        st.dataframe(ds, use_container_width=True, hide_index=True)
+        st.plotly_chart(px.pie(ds, names="Partido", values="Escaños", color="Partido",
+                               color_discrete_map=COLORES_EUS, title="Simulación 2026"), use_container_width=True)
+
+    st.markdown("**Δ Simulación vs Real 2024**")
+    df_e = pd.DataFrame([{"Partido":p,"Real 2024":REAL_EUS_2024.get(p,0),"Simulado":esc.get(p,0),"Delta":esc.get(p,0)-REAL_EUS_2024.get(p,0)} for p in PARTIDOS_EUS])
+    st.dataframe(df_e, use_container_width=True, hide_index=True)
+    st.caption("Fuentes: Sociómetro Vasco feb-2025, EITB, BOPV. D'Hondt, barrera 3% por territorio.")
+
 
 # ===============================
 # FUNCIONES GALICIA
@@ -2627,6 +2750,18 @@ nep_gal          = calcular_indice_fragmentacion(escanos_gal)
 lsq_gal          = calcular_sesgo_sistema(votos_gal_avg, escanos_gal)
 
 # ===============================
+# EJECUCIÓN — CÁLCULO EUSKADI
+# ===============================
+escanos_eus, datos_terr_eus = calcular_eus(
+    factor_independentismo, factor_izq_abertzale,
+    factor_economia_vasca, factor_concierto_eco, umbral_eus
+)
+votos_eus_avg = {p: sum(d["Votos"].get(p,0) for d in datos_terr_eus)/len(datos_terr_eus) for p in PARTIDOS_EUS}
+polarizacion_eus = calcular_indice_polarizacion(votos_eus_avg)
+nep_eus          = calcular_indice_fragmentacion(escanos_eus)
+lsq_eus          = calcular_sesgo_sistema(votos_eus_avg, escanos_eus)
+
+# ===============================
 # EJECUCIÓN — CÁLCULO MADRID
 # ===============================
 reparto_mad, votos_mad, datos_zonas_mad = calcular_mad(
@@ -2635,7 +2770,7 @@ reparto_mad, votos_mad, datos_zonas_mad = calcular_mad(
 polarizacion_mad = calcular_indice_polarizacion(votos_mad)
 nep_mad          = calcular_indice_fragmentacion(reparto_mad)
 lsq_mad          = calcular_sesgo_sistema(votos_mad, reparto_mad)
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "🏛️ Hemiciclo Nacional",
     "🗺️ Desglose Provincial",
     "📡 Radar Estratégico",
@@ -2646,6 +2781,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "🌿 Galicia — Lab. Electoral",
     "🏙️ Madrid — Lab. Electoral",
     "🧠 Auditoría & Aprendizaje",
+    "🏴󠁥󠁳󠁰󠁶󠁿 Euskadi — Lab. Electoral",
 ])
 
 # ========== TAB 1: HEMICICLO NACIONAL ==========
@@ -3164,6 +3300,15 @@ with tab9:
 
 
 # ========== TAB 10: AUDITORÍA ==========
+# ========== TAB 11: EUSKADI ==========
+with tab11:
+    render_tab_euskadi(
+        escanos_eus, datos_terr_eus,
+        polarizacion_eus, nep_eus, lsq_eus,
+        factor_independentismo, factor_izq_abertzale,
+        factor_economia_vasca, factor_concierto_eco
+    )
+
 with tab10:
     render_tab_auditoria(escanos_totales, escanos_cyl)
 
