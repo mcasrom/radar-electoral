@@ -2200,5 +2200,8 @@ with tab9:
     )
 
 
+import os as _os, datetime as _dt
+_log = "last_ingest.txt"
+_ts = _dt.datetime.fromtimestamp(_os.path.getmtime(_log)).strftime("%Y-%m-%d %H:%M") if _os.path.exists(_log) else "pendiente"
 # ========== TAB 10: ENERGÍA ==========
 st.markdown(f"© M.Castillo  |  mybloggingnotes@gmail.com  |  v2.2  |  🕐 Última ingesta: {_ts}")
