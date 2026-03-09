@@ -2635,6 +2635,19 @@ reparto_mad, votos_mad, datos_zonas_mad = calcular_mad(
 polarizacion_mad = calcular_indice_polarizacion(votos_mad)
 nep_mad          = calcular_indice_fragmentacion(reparto_mad)
 lsq_mad          = calcular_sesgo_sistema(votos_mad, reparto_mad)
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+    "🏛️ Hemiciclo Nacional",
+    "🗺️ Desglose Provincial",
+    "📡 Radar Estratégico",
+    "📋 Metodología y Fuentes",
+    "📈 Histórico Semanal",
+    "🏰 Castilla y León — Lab. Electoral",
+    "🌞 Andalucía — Lab. Electoral",
+    "🌿 Galicia — Lab. Electoral",
+    "🏙️ Madrid — Lab. Electoral",
+    "🧠 Auditoría & Aprendizaje",
+])
+
 # ========== TAB 1: HEMICICLO NACIONAL ==========
 with tab1:
     st.subheader("Proyección de Escaños — Congreso de los Diputados")
