@@ -3313,7 +3313,7 @@ with tab10:
     render_tab_auditoria(escanos_totales, escanos_cyl)
 
 import os as _os, datetime as _dt
-_log = "last_ingest.txt"
-_ts = _dt.datetime.fromtimestamp(_os.path.getmtime(_log)).strftime("%Y-%m-%d %H:%M") if _os.path.exists(_log) else "pendiente"
+_log = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "last_ingest.txt")
+_ts = open(_log).read().strip() if _os.path.exists(_log) else "pendiente"
 # ========== TAB 10: ENERGÍA ==========
 st.markdown(f"© M.Castillo  |  mybloggingnotes@gmail.com  |  v2.2  |  🕐 Última ingesta: {_ts}")
