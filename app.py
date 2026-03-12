@@ -3316,4 +3316,4 @@ import os as _os, datetime as _dt
 _log = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "last_ingest.txt")
 _ts = open(_log).read().strip() if _os.path.exists(_log) else "pendiente"
 # ========== TAB 10: ENERGÍA ==========
-st.markdown(f"© M.Castillo  |  mybloggingnotes@gmail.com  |  v2.2  |  🕐 Última ingesta: {_ts}")
+st.markdown(f"© M.Castillo  |  mybloggingnotes@gmail.com  |  v2.3  |  🕐 Última ingesta: {_ts}")
