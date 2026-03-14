@@ -463,3 +463,10 @@ _conn.close()
 # Timestamp para Streamlit Cloud
 with open(str(BASE_DIR / 'last_ingest.txt'), 'w') as f:
     f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M')))
+
+# Push automático a GitHub para que Streamlit Cloud lo lea
+import subprocess
+subprocess.run(['git', '-C', str(BASE_DIR), 'add', 'last_ingest.txt'], capture_output=True)
+subprocess.run(['git', '-C', str(BASE_DIR), 'commit', '-m', f'data: ingesta {datetime.now().strftime("%Y-%m-%d %H:%M")}'], capture_output=True)
+subprocess.run(['git', '-C', str(BASE_DIR), 'push', 'origin', 'main'], capture_output=True)
+print('✅ last_ingest.txt pusheado a GitHub')
