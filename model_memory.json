@@ -1,0 +1,90 @@
+{
+  "cyl_2026": {
+    "comunidad": "Castilla y León",
+    "fecha_eleccion": "2026-03-15",
+    "fecha_cierre": "2026-03-16",
+    "total_escanos": 82,
+    "prediccion": {
+      "PP": 33,
+      "PSOE": 27,
+      "VOX": 17,
+      "UPL": 3,
+      "Por Ávila": 1,
+      "Soria ¡Ya!": 1,
+      "SUMAR": 1,
+      "OTROS": 5
+    },
+    "resultado_real": {
+      "PP": 33,
+      "PSOE": 30,
+      "VOX": 14,
+      "UPL": 3,
+      "Por Ávila": 1,
+      "Soria ¡Ya!": 1,
+      "SUMAR": 0,
+      "OTROS": 0
+    },
+    "metricas": {
+      "rmse": 2.35,
+      "mae": 1.5,
+      "bias": -0.75,
+      "detalle": {
+        "Por Ávila": {
+          "pred": 1,
+          "real": 1,
+          "error": 0
+        },
+        "PP": {
+          "pred": 33,
+          "real": 33,
+          "error": 0
+        },
+        "UPL": {
+          "pred": 3,
+          "real": 3,
+          "error": 0
+        },
+        "PSOE": {
+          "pred": 27,
+          "real": 30,
+          "error": 3
+        },
+        "Soria ¡Ya!": {
+          "pred": 1,
+          "real": 1,
+          "error": 0
+        },
+        "SUMAR": {
+          "pred": 1,
+          "real": 0,
+          "error": -1
+        },
+        "VOX": {
+          "pred": 17,
+          "real": 14,
+          "error": -3
+        },
+        "OTROS": {
+          "pred": 5,
+          "real": 0,
+          "error": -5
+        }
+      }
+    },
+    "correcciones": {
+      "PSOE": 1.5,
+      "VOX": -1.5,
+      "OTROS": -2.5
+    },
+    "lecciones": [
+      "El modelo captura bien el voto conservador rural (PP exacto)",
+      "PSOE infraestimado +3: subestimamos movilización urbana y voto útil anti-VOX",
+      "VOX sobreestimado -3: encuestas SocioMétrica tienen sesgo +2-3 en CyL",
+      "OTROS sobreestimado: Cs/Podemos desaparecen más rápido de lo modelado",
+      "Aplicar corrección sesgo VOX (-0.75 esc/prov grande) en próximo laboratorio",
+      "Modelar explícitamente voto útil PSOE cuando VOX >15% en encuestas",
+      "Desagregar Soria ¡Ya! de OTROS — tiene dinámica propia e impredecible"
+    ],
+    "cerrado": true
+  }
+}
