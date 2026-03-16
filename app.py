@@ -3502,8 +3502,8 @@ with tab11:
 with tab10:
     render_tab_auditoria(escanos_totales, escanos_cyl)
 
-with tab_hist:
-    render_tab_historial()
+
+
 
 
 # ========== TAB HISTORIAL DE LABORATORIOS ==========
@@ -3638,6 +3638,9 @@ def render_tab_historial():
                     st.markdown(f"- {l}")
 
     st.caption("España Vota 2026 · model_memory.py · © M. Castillo")
+
+with tab_hist:
+    render_tab_historial()
 
 
 import os as _os, datetime as _dt
