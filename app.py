@@ -832,7 +832,7 @@ def render_tab_euskadi(esc, terrs, pol, nep, lsq, f_indep, f_izq, f_econ, f_conc
                    title=f"Parlamento Vasco — {TOTAL_EUS} diputados")
     fig_h.update_traces(textposition="outside")
     fig_h.update_layout(showlegend=False, height=400)
-    st.plotly_chart(fig_h, use_container_width=True)
+    st.plotly_chart(fig_h, width="stretch")
 
     st.subheader("⚖️ Análisis de bloques")
     b_nac = esc.get("PNV",0)+esc.get("EH Bildu",0)
@@ -854,26 +854,26 @@ def render_tab_euskadi(esc, terrs, pol, nep, lsq, f_indep, f_izq, f_econ, f_conc
                            color_discrete_map=COLORES_EUS, text="Escaños", height=280)
             fig_t.update_traces(textposition="outside")
             fig_t.update_layout(showlegend=False, margin=dict(t=20,b=20,l=10,r=10))
-            st.plotly_chart(fig_t, use_container_width=True)
+            st.plotly_chart(fig_t, width="stretch")
 
     st.subheader("🔍 Retrovalidación — Resultado real 21A 2024")
     cr, cs = st.columns(2)
     with cr:
         st.markdown("**Real 2024**")
         dr = pd.DataFrame([{"Partido":p,"Escaños":v} for p,v in REAL_EUS_2024.items() if v>0]).sort_values("Escaños",ascending=False)
-        st.dataframe(dr, use_container_width=True, hide_index=True)
+        st.dataframe(dr, width="stretch", hide_index=True)
         st.plotly_chart(px.pie(dr, names="Partido", values="Escaños", color="Partido",
-                               color_discrete_map=COLORES_EUS, title="Real 2024"), use_container_width=True)
+                               color_discrete_map=COLORES_EUS, title="Real 2024"), width="stretch")
     with cs:
         st.markdown("**Simulación 2026**")
         ds = pd.DataFrame([{"Partido":p,"Escaños":v} for p,v in esc.items() if v>0]).sort_values("Escaños",ascending=False)
-        st.dataframe(ds, use_container_width=True, hide_index=True)
+        st.dataframe(ds, width="stretch", hide_index=True)
         st.plotly_chart(px.pie(ds, names="Partido", values="Escaños", color="Partido",
-                               color_discrete_map=COLORES_EUS, title="Simulación 2026"), use_container_width=True)
+                               color_discrete_map=COLORES_EUS, title="Simulación 2026"), width="stretch")
 
     st.markdown("**Δ Simulación vs Real 2024**")
     df_e = pd.DataFrame([{"Partido":p,"Real 2024":REAL_EUS_2024.get(p,0),"Simulado":esc.get(p,0),"Delta":esc.get(p,0)-REAL_EUS_2024.get(p,0)} for p in PARTIDOS_EUS])
-    st.dataframe(df_e, use_container_width=True, hide_index=True)
+    st.dataframe(df_e, width="stretch", hide_index=True)
     st.caption("Fuentes: Sociómetro Vasco feb-2025, EITB, BOPV. D'Hondt, barrera 3% por territorio.")
 
 
@@ -2400,7 +2400,7 @@ def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
 
         c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
-            st.plotly_chart(_gauge_precision(prec_enc, "Precisión media encuestas"), use_container_width=True, key=f"gauge_retro_{sel[:8]}")
+            st.plotly_chart(_gauge_precision(prec_enc, "Precisión media encuestas"), width="stretch", key=f"gauge_retro_{sel[:8]}")
         with c2:
             st.metric("MAE encuestas (escaños)", f"{mae_enc:.1f}")
             st.metric("RMSE encuestas (escaños)", f"{rmse_enc:.1f}")
@@ -2414,11 +2414,11 @@ def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
                 delta = e - r
                 emoji = "✅" if abs(delta) <= 2 else ("⚠️" if abs(delta) <= 5 else "❌")
                 filas.append({"Partido": p, "Real": r, "Enc.Media": e, "Δ": f"{delta:+d}", "": emoji})
-            st.dataframe(pd.DataFrame(filas).set_index("Partido"), use_container_width=True)
+            st.dataframe(pd.DataFrame(filas).set_index("Partido"), width="stretch")
 
         st.plotly_chart(
             _grafico_retroval(partidos, resultado_real, enc_media_esc, colores),
-            use_container_width=True,
+            width="stretch",
             key=f"retro_barras_{sel[:8]}"
         )
 
@@ -2426,7 +2426,7 @@ def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
         st.markdown("### 🔍 Detalle por encuestadora")
         st.plotly_chart(
             _grafico_encuestas_fuente(partidos, encuestas, colores),
-            use_container_width=True,
+            width="stretch",
             key=f"retro_fuente_{sel[:8]}"
         )
 
@@ -2469,7 +2469,7 @@ def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
 
         c1, c2, c3 = st.columns([1, 1, 1])
         with c1:
-            st.plotly_chart(_gauge_precision(prec2, "Precisión vs Encuestas"), use_container_width=True, key=f"gauge_proy_{sel[:8]}")
+            st.plotly_chart(_gauge_precision(prec2, "Precisión vs Encuestas"), width="stretch", key=f"gauge_proy_{sel[:8]}")
         with c2:
             st.metric("MAE modelo vs enc. (esc.)", f"{mae_val2:.1f}")
             st.metric("RMSE modelo vs enc. (esc.)", f"{rmse_val2:.1f}")
@@ -2487,12 +2487,12 @@ def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
                 delta = m - e
                 emoji = "✅" if abs(delta) <= 2 else ("⚠️" if abs(delta) <= 5 else "❌")
                 filas.append({"Partido": p, "Modelo": m, "Enc.Media": e, "Δ": f"{delta:+d}", "": emoji})
-            st.dataframe(pd.DataFrame(filas).set_index("Partido"), use_container_width=True)
+            st.dataframe(pd.DataFrame(filas).set_index("Partido"), width="stretch")
 
         st.markdown("### 📊 Comparativa escaños")
         st.plotly_chart(
             _grafico_comparativa(partidos, modelo_esc, enc_media_esc, colores),
-            use_container_width=True,
+            width="stretch",
             key=f"proy_comp_{sel[:8]}"
         )
 
@@ -2500,13 +2500,13 @@ def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
         with col_d1:
             st.plotly_chart(
                 _grafico_delta(partidos, modelo_esc, enc_media_esc, colores),
-                use_container_width=True,
+                width="stretch",
                 key=f"proy_delta_{sel[:8]}"
             )
         with col_d2:
             st.plotly_chart(
                 _grafico_encuestas_fuente(partidos, encuestas, colores),
-                use_container_width=True,
+                width="stretch",
                 key=f"proy_fuente_{sel[:8]}"
             )
 
@@ -2522,25 +2522,25 @@ def render_tab_auditoria(escanos_nac: dict, escanos_cyl: dict):
     with tab_h1:
         col_r1, col_r2 = st.columns([2, 1])
         with col_r1:
-            st.plotly_chart(_grafico_historico_precision(), use_container_width=True, key="hist_rank")
+            st.plotly_chart(_grafico_historico_precision(), width="stretch", key="hist_rank")
         with col_r2:
             df_h = pd.DataFrame(HISTORICO_PRECISION)
             medias = df_h.groupby("encuestadora")[["nota", "mae_escanos"]].mean().round(1).sort_values("nota", ascending=False)
             medias.columns = ["Nota media", "MAE medio"]
             st.markdown("**Resumen por encuestadora**")
-            st.dataframe(medias, use_container_width=True)
+            st.dataframe(medias, width="stretch")
             st.caption("Nota: máx 100. MAE = error medio en escaños.")
 
     with tab_h2:
-        st.plotly_chart(_grafico_precision_por_eleccion(), use_container_width=True, key="hist_scatter")
+        st.plotly_chart(_grafico_precision_por_eleccion(), width="stretch", key="hist_scatter")
         # Tabla detalle
         df_h2 = pd.DataFrame(HISTORICO_PRECISION)[["eleccion", "encuestadora", "nota", "mae_escanos", "sesgo"]]
         df_h2 = df_h2.sort_values(["eleccion", "nota"], ascending=[True, False])
         df_h2.columns = ["Elección", "Encuestadora", "Nota", "MAE (esc.)", "Sesgo detectado"]
-        st.dataframe(df_h2.reset_index(drop=True), use_container_width=True)
+        st.dataframe(df_h2.reset_index(drop=True), width="stretch")
 
     with tab_h3:
-        st.plotly_chart(_grafico_sesgo_sistematico(), use_container_width=True, key="hist_heatmap")
+        st.plotly_chart(_grafico_sesgo_sistematico(), width="stretch", key="hist_heatmap")
 
         # Lecciones automáticas globales
         df_all = pd.DataFrame(HISTORICO_PRECISION)
