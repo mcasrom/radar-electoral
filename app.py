@@ -201,6 +201,8 @@ st.sidebar.markdown("""
     <a href='https://fake-news-narrative.streamlit.app' target='_blank'
        style='display:block; color:#4ade80; text-decoration:none; margin-bottom:4px'>📡 Narrative Radar</a>
     <a href='https://t.me/sieg_politica' target='_blank'
+    <a href='https://sieg-monitor-boe.streamlit.app' target='_blank'
+       style='display:block; color:#4ade80; text-decoration:none; margin-bottom:4px'>📋 Monitor BOE</a>
        style='display:block; color:#4ade80; text-decoration:none; margin-bottom:4px'>📢 Canal @sieg_politica</a>
 </div>
 """, unsafe_allow_html=True)
