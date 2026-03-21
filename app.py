@@ -1,4 +1,7 @@
 import streamlit as st
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning, module='plotly')
+warnings.filterwarnings('ignore', category=FutureWarning, module='pandas')
 try:
     from model_memory import (
         inicializar_cyl_2026, resumen_labs,
